@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bot,
   CheckCircle2,
@@ -50,7 +50,7 @@ export default function PublicProfilePage() {
   const [toast, setToast] = useState("");
   const [photoIndex, setPhotoIndex] = useState(0);
 
-  async function loadProfile() {
+  const loadProfile = useCallback(async () => {
     if (!profileId) return;
     setLoading(true);
     const res = await apiFetch(`/api/profile/${profileId}`, { retryOn401: true });
@@ -63,11 +63,11 @@ export default function PublicProfilePage() {
       setTimeout(() => setToast(""), 1800);
     }
     setLoading(false);
-  }
+  }, [profileId]);
 
   useEffect(() => {
     loadProfile();
-  }, [profileId]);
+  }, [loadProfile]);
 
   const locationLabel = useMemo(() => {
     if (!profile?.location) return "Location not set";

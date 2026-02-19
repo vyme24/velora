@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChatBubble } from "@/components/premium/chat-bubble";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,16 @@ type MatchItem = { _id: string; user1: MatchUser; user2: MatchUser };
 type Me = { userId: string };
 type MessageItem = { _id: string; sender: string; message: string; createdAt: string };
 
-export default function MessagesPage() {
+function MessagesLoading() {
+  return (
+    <main className="grid gap-4 lg:grid-cols-[20rem_1fr]">
+      <div className="min-h-[65vh] animate-pulse rounded-3xl border border-border bg-card" />
+      <div className="min-h-[65vh] animate-pulse rounded-3xl border border-border bg-card" />
+    </main>
+  );
+}
+
+function MessagesPageClient() {
   const searchParams = useSearchParams();
   const preferredUserId = String(searchParams.get("user") || "");
   const [me, setMe] = useState<Me | null>(null);
@@ -162,5 +171,13 @@ export default function MessagesPage() {
       </div>
       <Toast open={Boolean(toast)} message={toast} />
     </main>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={<MessagesLoading />}>
+      <MessagesPageClient />
+    </Suspense>
   );
 }

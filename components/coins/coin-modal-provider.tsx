@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Coins, X } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
 
@@ -51,13 +51,13 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
   const [directOnlyFlow, setDirectOnlyFlow] = useState(false);
   const [activeOffer, setActiveOffer] = useState<null | { code: "limited_700_499"; label: string; coins: number; amount: number }>(null);
 
-  async function refreshCoins() {
+  const refreshCoins = useCallback(async () => {
     const res = await apiFetch("/api/auth/me", { retryOn401: true });
     const json = await res.json();
     if (res.ok) setCoins(json.data.coins ?? 0);
-  }
+  }, []);
 
-  async function loadPackages() {
+  const loadPackages = useCallback(async () => {
     const res = await apiFetch("/api/coins/packages");
     const json = await res.json();
     if (res.ok) {
@@ -80,9 +80,9 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
       setPendingDirectCheckout(false);
       setDirectOnlyFlow(false);
     }
-  }
+  }, [pendingDirectCheckout, selectedId]);
 
-  function openCoinModal(options?: string | { reason?: string; packageId?: string; directCheckout?: boolean }) {
+  const openCoinModal = useCallback((options?: string | { reason?: string; packageId?: string; directCheckout?: boolean }) => {
     const resolved =
       typeof options === "string"
         ? { reason: options, directCheckout: false }
@@ -113,7 +113,7 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
       if (offer?.id) setSelectedId(offer.id);
       setCheckoutOpen(true);
     }
-  }
+  }, [loadPackages, packages]);
 
   function closeCoinModal() {
     setOpen(false);
@@ -127,7 +127,7 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     refreshCoins();
     loadPackages();
-  }, []);
+  }, [refreshCoins, loadPackages]);
 
   useEffect(() => {
     const syncFromEvent = (event: Event) => {
@@ -158,7 +158,7 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("focus", refreshOnFocus);
       document.removeEventListener("visibilitychange", refreshOnVisibility);
     };
-  }, []);
+  }, [refreshCoins]);
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -169,7 +169,7 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
 
     window.addEventListener("velora:coin-required", handler as EventListener);
     return () => window.removeEventListener("velora:coin-required", handler as EventListener);
-  }, []);
+  }, [openCoinModal, refreshCoins]);
 
   const selected = useMemo(() => packages.find((pkg) => pkg.id === selectedId) || null, [packages, selectedId]);
   const selectedCoinsWithVip = selected ? Math.floor(selected.coins * VIP_MULTIPLIER) : 0;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
 
@@ -29,7 +29,6 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
 
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -45,14 +44,16 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (searchParams.get("auth") !== "1") return;
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("auth") !== "1") return;
     setReason("Please log in or create an account to continue.");
     setMode("login");
     setOpen(true);
     if (pathname === "/") {
       router.replace("/");
     }
-  }, [pathname, router, searchParams]);
+  }, [pathname, router]);
 
   async function onLogin() {
     if (!loginEmail || !loginPassword) {
@@ -178,29 +179,18 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
       {children}
       {open ? (
         <div className="fixed inset-0 z-[95] grid place-items-center bg-black/45 p-4">
-          <div className="w-full max-w-5xl overflow-hidden rounded-3xl border border-border bg-card shadow-2xl">
-            <div className="grid md:grid-cols-[1fr_1.2fr]">
-              <aside className="relative min-h-[560px] bg-gradient-to-br from-primary via-primary/85 to-primary/70 p-7 text-white">
-                <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-white/15 blur-2xl" />
-                <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-white/10 blur-2xl" />
-                <div className="flex items-start justify-between gap-3">
-                  <div className="relative">
-                    <p className="text-3xl font-semibold leading-tight">Welcome to Velora</p>
-                    <p className="mt-2 text-sm text-white/90">{reason}</p>
-                  </div>
-                  <button onClick={() => setOpen(false)} className="rounded-xl border border-white/40 p-2 text-white">
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-                <div className="relative mt-12 space-y-3 text-sm">
-                  <p className="rounded-xl border border-white/30 bg-white/10 px-4 py-3">Verified member profiles</p>
-                  <p className="rounded-xl border border-white/30 bg-white/10 px-4 py-3">Fast matching and real-time chat</p>
-                  <p className="rounded-xl border border-white/30 bg-white/10 px-4 py-3">Secure coins and subscription payments</p>
-                </div>
-              </aside>
+          <div className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-2xl md:p-8">
+            <button onClick={() => setOpen(false)} className="absolute right-4 top-4 rounded-xl border border-border p-2 text-foreground/80 hover:bg-muted">
+              <X className="h-4 w-4" />
+            </button>
 
-              <section className="min-h-[560px] p-7">
-                <div className="grid grid-cols-2 gap-2 rounded-2xl bg-muted p-1">
+            <div className="mx-auto max-w-md">
+              <div className="text-center">
+                <p className="text-3xl font-semibold leading-tight">Welcome to Velora</p>
+                <p className="mx-auto mt-2 max-w-sm text-sm text-foreground/70">{reason}</p>
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-muted p-1">
                   <button
                     onClick={() => setMode("login")}
                     className={`h-10 rounded-xl text-sm font-semibold ${mode === "login" ? "bg-card shadow-sm" : "text-foreground/70"}`}
@@ -213,94 +203,102 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
                   >
                     Join Now
                   </button>
-                </div>
+              </div>
 
-                {mode === "login" ? (
-                  <div className="mt-5 space-y-3">
-                    <button
-                      onClick={onGoogleAuth}
-                      type="button"
-                      className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-sm font-semibold transition hover:border-primary/35 hover:bg-muted/50"
-                    >
-                      <GoogleIcon />
-                      Continue with Google
-                    </button>
-                    <div className="relative py-1 text-center text-xs text-foreground/60">or sign in with email</div>
-                    <input
-                      value={loginEmail}
-                      onChange={(event) => setLoginEmail(event.target.value)}
-                      placeholder="Email"
-                      className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm outline-none transition focus:border-primary/45"
-                    />
-                    <input
-                      type="password"
-                      value={loginPassword}
-                      onChange={(event) => setLoginPassword(event.target.value)}
-                      placeholder="Password"
-                      className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm outline-none transition focus:border-primary/45"
-                    />
-                    <button
-                      onClick={onLogin}
-                      disabled={loading}
-                      className="h-12 w-full rounded-2xl bg-velora-gradient text-sm font-semibold text-white shadow-sm disabled:opacity-60"
-                    >
-                      {loading ? "Signing in..." : "Login"}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-5 space-y-3">
-                    <button
-                      onClick={onGoogleAuth}
-                      type="button"
-                      className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-sm font-semibold transition hover:border-primary/35 hover:bg-muted/50"
-                    >
-                      <GoogleIcon />
-                      Join with Google
-                    </button>
-                    <div className="relative py-1 text-center text-xs text-foreground/60">or create account with email</div>
-                    <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Full name" className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm outline-none transition focus:border-primary/45" />
-                    <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm outline-none transition focus:border-primary/45" />
-                    <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm outline-none transition focus:border-primary/45" />
-                    <div className="grid grid-cols-3 gap-2">
-                      <input type="number" value={age} onChange={(event) => setAge(Number(event.target.value || 18))} placeholder="Age" className="h-12 rounded-2xl border border-border bg-background px-3 text-sm outline-none transition focus:border-primary/45" />
-                      <select value={gender} onChange={(event) => setGender(event.target.value)} className="h-12 rounded-2xl border border-border bg-background px-2 text-sm outline-none transition focus:border-primary/45">
+              {mode === "login" ? (
+                <div className="mt-5 space-y-3">
+                  <button
+                    onClick={onGoogleAuth}
+                    type="button"
+                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-sm font-semibold transition hover:border-primary/35 hover:bg-muted/50"
+                  >
+                    <GoogleIcon />
+                    Continue with Google
+                  </button>
+                  <div className="relative py-1 text-center text-xs text-foreground/60">or sign in with email</div>
+                  <input
+                    value={loginEmail}
+                    onChange={(event) => setLoginEmail(event.target.value)}
+                    placeholder="Email"
+                    className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm outline-none transition focus:border-primary/45"
+                  />
+                  <input
+                    type="password"
+                    value={loginPassword}
+                    onChange={(event) => setLoginPassword(event.target.value)}
+                    placeholder="Password"
+                    className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm outline-none transition focus:border-primary/45"
+                  />
+                  <button
+                    onClick={onLogin}
+                    disabled={loading}
+                    className="h-12 w-full rounded-2xl bg-velora-gradient text-sm font-semibold text-white shadow-sm disabled:opacity-60"
+                  >
+                    {loading ? "Signing in..." : "Login"}
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-5 space-y-3">
+                  <button
+                    onClick={onGoogleAuth}
+                    type="button"
+                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background text-sm font-semibold transition hover:border-primary/35 hover:bg-muted/50"
+                  >
+                    <GoogleIcon />
+                    Join with Google
+                  </button>
+                  <div className="relative py-1 text-center text-xs text-foreground/60">or create account with email</div>
+                  <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Full name" className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm outline-none transition focus:border-primary/45" />
+                  <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm outline-none transition focus:border-primary/45" />
+                  <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm outline-none transition focus:border-primary/45" />
+                  <div className="grid grid-cols-3 gap-2">
+                    <label className="space-y-1">
+                      <span className="block text-xs font-semibold text-foreground/70">Age</span>
+                      <input type="number" min={18} value={age} onChange={(event) => setAge(Number(event.target.value || 18))} placeholder="Age" className="h-12 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none transition focus:border-primary/45" />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="block text-xs font-semibold text-foreground/70">Gender</span>
+                      <select value={gender} onChange={(event) => setGender(event.target.value)} className="h-12 w-full rounded-2xl border border-border bg-background px-2 text-sm outline-none transition focus:border-primary/45">
                         <option value="female">Female</option>
                         <option value="male">Male</option>
                         <option value="other">Other</option>
                       </select>
-                      <select value={lookingFor} onChange={(event) => setLookingFor(event.target.value)} className="h-12 rounded-2xl border border-border bg-background px-2 text-sm outline-none transition focus:border-primary/45">
+                    </label>
+                    <label className="space-y-1">
+                      <span className="block text-xs font-semibold text-foreground/70">Looking for</span>
+                      <select value={lookingFor} onChange={(event) => setLookingFor(event.target.value)} className="h-12 w-full rounded-2xl border border-border bg-background px-2 text-sm outline-none transition focus:border-primary/45">
                         <option value="female">Female</option>
                         <option value="male">Male</option>
                         <option value="all">All</option>
                       </select>
-                    </div>
+                    </label>
+                  </div>
 
-                    {!userId ? (
+                  {!userId ? (
+                    <button
+                      onClick={onRegister}
+                      disabled={loading}
+                      className="h-12 w-full rounded-2xl bg-velora-gradient text-sm font-semibold text-white shadow-sm disabled:opacity-60"
+                    >
+                      {loading ? "Creating..." : "Create account"}
+                    </button>
+                  ) : (
+                    <div className="space-y-2 rounded-2xl border border-border p-3">
+                      <input value={otp} onChange={(event) => setOtp(event.target.value)} placeholder="Enter OTP" className="h-12 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none transition focus:border-primary/45" />
+                      {devOtp ? <p className="text-xs text-foreground/65">Dev OTP: <span className="font-semibold">{devOtp}</span></p> : null}
                       <button
-                        onClick={onRegister}
+                        onClick={onVerifyOtp}
                         disabled={loading}
                         className="h-12 w-full rounded-2xl bg-velora-gradient text-sm font-semibold text-white shadow-sm disabled:opacity-60"
                       >
-                        {loading ? "Creating..." : "Create account"}
+                        {loading ? "Verifying..." : "Verify OTP"}
                       </button>
-                    ) : (
-                      <div className="space-y-2 rounded-2xl border border-border p-3">
-                        <input value={otp} onChange={(event) => setOtp(event.target.value)} placeholder="Enter OTP" className="h-12 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none transition focus:border-primary/45" />
-                        {devOtp ? <p className="text-xs text-foreground/65">Dev OTP: <span className="font-semibold">{devOtp}</span></p> : null}
-                        <button
-                          onClick={onVerifyOtp}
-                          disabled={loading}
-                          className="h-12 w-full rounded-2xl bg-velora-gradient text-sm font-semibold text-white shadow-sm disabled:opacity-60"
-                        >
-                          {loading ? "Verifying..." : "Verify OTP"}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
+              )}
 
-                {message ? <p className="mt-3 text-xs text-primary">{message}</p> : null}
-              </section>
+              {message ? <p className="mt-3 text-center text-xs text-primary">{message}</p> : null}
             </div>
           </div>
         </div>

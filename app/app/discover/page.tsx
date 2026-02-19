@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Compass, Flame, Heart, MapPin, RefreshCw, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { Compass, Heart, MapPin, Send, Sparkles } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCoinModal } from "@/components/coins/coin-modal-provider";

@@ -56,7 +56,7 @@ function csrfHeaders() {
 
 function applyPreviewVariables(html: string, variables: string[]) {
   const replacements: Record<string, string> = {
-    "{{name}}": "Alex",
+    "{{name}}": "User",
     "{{otp}}": "483920",
     "{{amount}}": "$39.95",
     "{{description}}": "Your monthly package has been renewed successfully."

@@ -258,7 +258,7 @@ export default function DiscoverPage() {
 
           <section className="space-y-4">
             <div className="rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 dark:border-primary/30 dark:from-primary/15 dark:via-primary/10 dark:to-slate-900/40">
-              <p className="text-sm font-semibold text-primary">Welcome back, Alex!</p> 
+              <p className="text-sm font-semibold text-primary">Welcome back!</p> 
               <p className="mt-1 text-sm text-foreground/70 dark:text-slate-300">Based on your preferences and activity, here are some profiles you might like.</p>
              
             </div>

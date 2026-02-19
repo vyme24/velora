@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
 import { Toast } from "@/components/ui/toast";
+import { useI18n } from "@/components/i18n-provider";
 
 type Me = {
   subscriptionPlan: "free" | "gold" | "platinum";
@@ -24,11 +24,14 @@ type PaymentHistoryItem = {
   packageId?: string | null;
   coinsAdded?: number;
   subscriptionPlan?: string | null;
+  invoiceId?: string | null;
+  referenceId?: string;
   createdAt?: string;
   paidAt?: string | null;
 };
 
 export default function AppBillingPage() {
+  const { formatMoney, currency } = useI18n();
   const [me, setMe] = useState<Me | null>(null);
   const [payments, setPayments] = useState<PaymentHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,30 +71,13 @@ export default function AppBillingPage() {
     if (res.ok) setMe(json.data);
   }
 
-  async function openPortal() {
-    setLoadingAction("portal");
-    const res = await apiFetch("/api/stripe/portal", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      includeCsrf: true,
-      body: JSON.stringify({})
-    });
-    const json = await res.json();
-    setLoadingAction("");
-    if (!res.ok) {
-      showToast(json.message || "Unable to open billing portal");
-      return;
-    }
-    if (json.data?.portalUrl) window.location.href = json.data.portalUrl;
-  }
-
   async function cancelOrResume(cancelAtPeriodEnd: boolean) {
     setLoadingAction(cancelAtPeriodEnd ? "cancel" : "resume");
-    const res = await apiFetch("/api/stripe/subscription/cancel", {
+    const res = await apiFetch("/api/subscriptions/manage", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       includeCsrf: true,
-      body: JSON.stringify({ cancelAtPeriodEnd })
+      body: JSON.stringify({ target: "subscription", cancelAtPeriodEnd })
     });
     const json = await res.json();
     setLoadingAction("");
@@ -130,10 +116,6 @@ export default function AppBillingPage() {
         <div className="rounded-2xl border border-border bg-muted/30 p-4">
           <p className="text-sm font-semibold">Manage billing</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button onClick={openPortal} disabled={loadingAction.length > 0} className="inline-flex h-10 items-center gap-2 rounded-2xl border border-border px-4 text-sm font-semibold hover:bg-muted">
-              {loadingAction === "portal" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Open Stripe billing portal
-            </button>
             <button onClick={() => cancelOrResume(true)} disabled={loadingAction.length > 0 || me?.subscriptionPlan === "free"} className="inline-flex h-10 items-center rounded-2xl border border-border px-4 text-sm font-semibold hover:bg-muted disabled:opacity-50">
               {loadingAction === "cancel" ? "Cancelling..." : "Cancel at period end"}
             </button>
@@ -163,9 +145,12 @@ export default function AppBillingPage() {
                     <p className="text-xs text-foreground/65">
                       {new Date(payment.paidAt || payment.createdAt || Date.now()).toLocaleString()}
                     </p>
+                    <p className="text-xs text-foreground/65">
+                      Invoice: {payment.invoiceId || payment.referenceId || "-"}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold">${(payment.amount / 100).toFixed(2)}</p>
+                    <p className="font-semibold">{formatMoney(payment.amount, payment.currency || currency)}</p>
                     <p className={`text-xs ${payment.status === "succeeded" ? "text-emerald-600" : "text-foreground/65"}`}>{payment.status}</p>
                   </div>
                 </div>
@@ -179,4 +164,3 @@ export default function AppBillingPage() {
     </main>
   );
 }
-

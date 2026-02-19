@@ -9,6 +9,7 @@ import { Payment } from "@/models/Payment";
 import { User } from "@/models/User";
 import { CoinLedger } from "@/models/CoinLedger";
 import { Transaction } from "@/models/Transaction";
+import { generateInvoiceId } from "@/lib/payment-invoice";
 
 async function applyCoinCredit(session: Stripe.Checkout.Session, userId: string) {
   const metadata = (session.metadata || {}) as { coins?: string; packageId?: string };
@@ -29,6 +30,7 @@ async function applyCoinCredit(session: Stripe.Checkout.Session, userId: string)
   await user.save();
 
   payment.status = "succeeded";
+  if (!payment.invoiceId) payment.invoiceId = generateInvoiceId("COIN");
   payment.paidAt = new Date();
   payment.stripePaymentIntentId =
     typeof session.payment_intent === "string" ? session.payment_intent : payment.stripePaymentIntentId;
@@ -97,6 +99,7 @@ export async function POST(req: NextRequest) {
   const payment = await Payment.findOne({ stripeCheckoutSessionId: session.id });
   if (payment && payment.status !== "succeeded") {
     payment.status = "succeeded";
+    if (!payment.invoiceId) payment.invoiceId = generateInvoiceId("SUB");
     payment.paidAt = new Date();
     if (typeof session.subscription === "string") payment.stripeSubscriptionId = session.subscription;
     await payment.save();

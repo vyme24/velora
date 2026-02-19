@@ -17,7 +17,15 @@ const messageSchema = new Schema(
         default: "text"
       },
       requiresCoins: { type: Boolean, default: false },
-      consumedCoins: { type: Number, default: 0 }
+      consumedCoins: { type: Number, default: 0 },
+      autoReply: { type: Boolean, default: false },
+      gift: {
+        id: { type: String, default: "" },
+        key: { type: String, default: "" },
+        name: { type: String, default: "" },
+        image: { type: String, default: "" },
+        category: { type: String, default: "" }
+      }
     },
     timestamp: { type: Date, default: Date.now, index: true }
   },

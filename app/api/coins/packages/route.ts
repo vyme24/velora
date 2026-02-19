@@ -9,6 +9,7 @@ export async function GET() {
     id: plan.key,
     coins: plan.coins || 0,
     amount: plan.amount,
+    currency: (plan.currency || "usd").toUpperCase(),
     label: plan.label || "",
     badge: plan.badge || "",
     extra: plan.extra || 0

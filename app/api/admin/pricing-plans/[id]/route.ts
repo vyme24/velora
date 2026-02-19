@@ -22,7 +22,7 @@ type Params = { params: { id: string } };
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   if (!verifyCsrf(req)) return fail("Invalid CSRF token", 403);
-  const auth = await requireAdminActor(req, { superOnly: true });
+  const auth = await requireAdminActor(req, { permission: "manage_pricing" });
   if ("response" in auth) return auth.response;
 
   const parsed = updateSchema.safeParse(await req.json());
@@ -38,7 +38,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 export async function DELETE(req: NextRequest, { params }: Params) {
   if (!verifyCsrf(req)) return fail("Invalid CSRF token", 403);
-  const auth = await requireAdminActor(req, { superOnly: true });
+  const auth = await requireAdminActor(req, { permission: "manage_pricing" });
   if ("response" in auth) return auth.response;
 
   const deleted = await PricingPlan.findByIdAndDelete(params.id);

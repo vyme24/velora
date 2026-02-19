@@ -18,7 +18,7 @@ import {
   Heart,
   X
 } from "lucide-react";
-import { apiFetch, triggerCoinModal, triggerCoinSync } from "@/lib/client-api";
+import { apiFetch, triggerCoinSync } from "@/lib/client-api";
 import { Toast } from "@/components/ui/toast";
 
 type ProfileDetails = {
@@ -190,9 +190,9 @@ export default function PublicProfilePage() {
     <main className="space-y-5 pb-8">
      
 
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(420px,0.85fr)]">
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
         <div className="space-y-4">
-           <header className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/15 via-background to-primary/5 p-4 shadow-sm md:p-6">
+           <header className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/15 via-background to-primary/5 p-4 shadow-sm md:p-5">
         <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/15 blur-3xl" />
         <div className="absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
 
@@ -205,7 +205,7 @@ export default function PublicProfilePage() {
               <Image src={currentPhoto} alt={profile.name} fill className="object-cover" />
             </div>
             <div>
-              <h1 className="text-3xl font-semibold leading-none">
+              <h1 className="text-2xl font-semibold leading-none">
                 {profile.name}, {profile.age}
               </h1>
               <p className="mt-1 inline-flex items-center gap-1 text-sm text-foreground/70">
@@ -241,7 +241,7 @@ export default function PublicProfilePage() {
               </button>
 
               <button
-                onClick={() => triggerCoinModal("Gifts require coins. Add coins to continue.")}
+                onClick={() => router.push(`/app/messages?user=${profile._id}&gift=1`)}
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-primary/35 bg-background px-5 text-base font-semibold text-primary transition hover:bg-primary/5"
               >
                 <Gift className="h-5 w-5" /> Send a gift
@@ -249,14 +249,14 @@ export default function PublicProfilePage() {
             </div>
           ) : null}
 
-          <article className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+          <article className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-wide text-foreground/65">Bio</p>
-            <p className="mt-3 text-xl leading-snug text-foreground/85">{profile.bio || "No bio added yet."}</p>
+            <p className="mt-2 text-base leading-relaxed text-foreground/85">{profile.bio || "No bio added yet."}</p>
           </article>
 
-          <article className="rounded-3xl border border-border bg-card p-5 shadow-sm">
-            <p className="text-2xl font-semibold">About Me</p>
-            <div className="mt-4 flex flex-wrap gap-2">
+          <article className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <p className="text-xl font-semibold">About Me</p>
+            <div className="mt-3 flex flex-wrap gap-2">
               <span className="rounded-full border border-border bg-muted px-3 py-1 text-sm">{profile.gender}</span>
               <span className="rounded-full border border-border bg-muted px-3 py-1 text-sm">Looking for {profile.lookingFor}</span>
               <span className="rounded-full border border-border bg-muted px-3 py-1 text-sm">Age {profile.age}</span>
@@ -264,9 +264,9 @@ export default function PublicProfilePage() {
             </div>
           </article>
 
-          <article className="rounded-3xl border border-border bg-card p-5 shadow-sm">
-            <p className="text-2xl font-semibold">Interests</p>
-            <div className="mt-4 flex flex-wrap gap-2">
+          <article className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <p className="text-xl font-semibold">Interests</p>
+            <div className="mt-3 flex flex-wrap gap-2">
               {(profile.interests || []).length ? (
                 profile.interests.map((interest) => (
                   <span key={interest} className="rounded-full border border-border bg-muted px-3 py-1 text-sm font-medium">
@@ -279,11 +279,11 @@ export default function PublicProfilePage() {
             </div>
           </article>
 
-          <article className="rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/10 to-background p-5 shadow-sm">
-            <p className="inline-flex items-center gap-2 text-xl font-semibold text-primary">
+          <article className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 to-background p-4 shadow-sm">
+            <p className="inline-flex items-center gap-2 text-lg font-semibold text-primary">
               <Sparkles className="h-5 w-5" /> AI Conversation Starter
             </p>
-            <p className="mt-3 text-lg font-semibold leading-tight text-foreground">
+            <p className="mt-2 text-base font-semibold leading-snug text-foreground">
               Nice to meet you, what would you like to talk about first?
             </p>
             {!profile.isSelf ? (
@@ -300,7 +300,7 @@ export default function PublicProfilePage() {
 
         <article className="self-start rounded-3xl border border-border bg-card p-3 shadow-sm md:p-4 lg:sticky lg:top-24">
           <div className="relative overflow-hidden rounded-2xl bg-muted">
-            <div className="relative h-[68vh] min-h-[560px] max-h-[860px] md:h-[74vh] lg:h-[78vh]">
+            <div className="relative h-[56vh] min-h-[360px] max-h-[620px] md:h-[62vh] lg:h-[66vh]">
               <button
                 onClick={() => setViewerOpen(true)}
                 className="absolute inset-0 z-[1] cursor-zoom-in"
@@ -355,10 +355,10 @@ export default function PublicProfilePage() {
                     setPhotoIndex(index);
                     setViewerOpen(true);
                   }}
-                  className={`relative h-20 w-16 shrink-0 overflow-hidden rounded-lg border ${
-                    index === photoIndex ? "border-primary ring-1 ring-primary/35" : "border-border"
-                  }`}
-                >
+                    className={`relative h-16 w-12 shrink-0 overflow-hidden rounded-lg border ${
+                      index === photoIndex ? "border-primary ring-1 ring-primary/35" : "border-border"
+                    }`}
+                  >
                   <Image src={photo || "/profiles/ava.svg"} alt={`${profile.name} thumbnail ${index + 1}`} fill className="object-cover" />
                 </button>
               ))}
@@ -367,7 +367,7 @@ export default function PublicProfilePage() {
                 ? Array.from({ length: Math.max(0, profile.totalPhotos - profile.photos.length) }).map((_, index) => (
                     <div
                       key={`locked-thumb-${index}`}
-                      className="grid h-20 w-16 shrink-0 place-items-center rounded-lg border border-border bg-muted text-foreground/55"
+                      className="grid h-16 w-12 shrink-0 place-items-center rounded-lg border border-border bg-muted text-foreground/55"
                     >
                       <Lock className="h-4 w-4" />
                     </div>

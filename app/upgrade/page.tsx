@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Coins, Gem, ShieldCheck } from "lucide-react";
-import { apiFetch } from "@/lib/client-api";
+import { apiFetch, triggerCoinSync } from "@/lib/client-api";
 import { Toast } from "@/components/ui/toast";
+import { useI18n } from "@/components/i18n-provider";
 
 type CoinPackage = {
   id: string;
   coins: number;
   amount: number;
+  currency: string;
   label: string;
   badge: string;
   extra: number;
@@ -19,9 +21,12 @@ type Me = {
   coins: number;
 };
 
-function formatUsd(amountCents: number) {
-  return `$${(amountCents / 100).toFixed(2)}`;
-}
+type RuntimeConfig = {
+  coinRules?: {
+    messageCost?: number;
+    profileUnlockCost?: number;
+  };
+};
 
 function getTierTone(pkg: CoinPackage) {
   const key = `${pkg.id} ${pkg.label} ${pkg.badge}`.toLowerCase();
@@ -36,25 +41,31 @@ const VIP_BONUS_PERCENT = 15;
 const VIP_MULTIPLIER = 1 + VIP_BONUS_PERCENT / 100;
 
 export default function UpgradePage() {
+  const { formatMoney, currency, t } = useI18n();
   const [me, setMe] = useState<Me | null>(null);
   const [packages, setPackages] = useState<CoinPackage[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(false);
   const [vipTrial, setVipTrial] = useState(false);
   const [toast, setToast] = useState("");
+  const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig | null>(null);
 
   useEffect(() => {
     (async () => {
-      const meRes = await apiFetch("/api/auth/me", { retryOn401: true });
+      const [meRes, pkgRes, configRes] = await Promise.all([
+        apiFetch("/api/auth/me", { retryOn401: true }),
+        apiFetch("/api/coins/packages"),
+        apiFetch("/api/auth/system-config", { retryOn401: true })
+      ]);
       const meJson = await meRes.json();
-      if (meRes.ok) setMe(meJson.data);
-
-      const pkgRes = await apiFetch("/api/coins/packages");
       const pkgJson = await pkgRes.json();
+      const configJson = await configRes.json();
+      if (meRes.ok) setMe(meJson.data);
       if (pkgRes.ok) {
         setPackages(pkgJson.data || []);
         if (pkgJson.data?.length) setSelectedId(pkgJson.data[0].id);
       }
+      if (configRes.ok) setRuntimeConfig(configJson.data || null);
     })();
   }, []);
 
@@ -86,6 +97,17 @@ export default function UpgradePage() {
       return;
     }
 
+    if (json.data?.internalProcessed) {
+      const nextCoins = Number(json.data?.coins ?? me?.coins ?? 0);
+      if (Number.isFinite(nextCoins)) {
+        setMe((prev) => (prev ? { ...prev, coins: nextCoins } : prev));
+        triggerCoinSync(nextCoins);
+      }
+      setToast(vipTrial ? "VIP recurring activated and coins added." : "Purchase completed.");
+      setTimeout(() => setToast(""), 1800);
+      return;
+    }
+
     if (json.data?.checkoutUrl) {
       window.location.href = json.data.checkoutUrl;
       return;
@@ -99,7 +121,7 @@ export default function UpgradePage() {
     <main className="mx-auto max-w-3xl space-y-5 px-4 py-8">
       <div className="rounded-3xl border border-border bg-card p-5">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-3xl font-semibold">Choose a package</p>
+          <p className="text-3xl font-semibold">{t("upgrade.choose_package", "Choose a package")}</p>
           <span className="inline-flex items-center gap-2 rounded-xl border border-border bg-muted px-3 py-1.5 text-lg font-semibold">
             <Coins className="h-4 w-4 text-primary" /> {me?.coins ?? 0}
           </span>
@@ -120,7 +142,7 @@ export default function UpgradePage() {
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-4 text-sm text-foreground/70">
-        Send each message costs <span className="font-semibold text-primary">50 coins</span>. Unlock all photos on a profile costs <span className="font-semibold text-primary">70 coins</span>.
+        Send each message costs <span className="font-semibold text-primary">{runtimeConfig?.coinRules?.messageCost ?? 50} coins</span>. Unlock all photos on a profile costs <span className="font-semibold text-primary">{runtimeConfig?.coinRules?.profileUnlockCost ?? 70} coins</span>.
       </div>
 
       <div className="space-y-3">
@@ -151,7 +173,7 @@ export default function UpgradePage() {
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-3xl font-semibold">{formatUsd(pkg.amount)}</p>
+                        <p className="text-3xl font-semibold">{formatMoney(pkg.amount, pkg.currency || currency)}</p>
                 <p className="mt-1 text-[11px] text-foreground/60">One-time payment</p>
               </div>
             </div>
@@ -170,7 +192,7 @@ export default function UpgradePage() {
         disabled={!selected || loading}
         className="h-14 w-full rounded-2xl bg-primary text-xl font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
       >
-        {loading ? "Starting checkout..." : `Buy now ${selected ? `(${formatUsd(selected.amount)})` : ""} • ${(vipTrial ? selectedCoinsWithVip : selected?.coins || 0).toLocaleString()} coins`}
+        {loading ? "Starting checkout..." : `Buy now ${selected ? `(${formatMoney(selected.amount, selected.currency || currency)})` : ""} • ${(vipTrial ? selectedCoinsWithVip : selected?.coins || 0).toLocaleString()} coins`}
       </button>
 
       <div className="flex items-center justify-center gap-4 text-sm text-foreground/70">

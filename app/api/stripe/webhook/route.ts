@@ -8,7 +8,8 @@ import { User } from "@/models/User";
 import { CoinLedger } from "@/models/CoinLedger";
 import { StripeEvent } from "@/models/StripeEvent";
 import { Transaction } from "@/models/Transaction";
-import { paymentConfirmationTemplate, sendEmail } from "@/lib/email";
+import { canSendInvoiceEmail, getPaymentEmailContent, sendEmail } from "@/lib/email";
+import { generateInvoiceId } from "@/lib/payment-invoice";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -95,11 +96,18 @@ async function handleCoinCheckout(session: Stripe.Checkout.Session) {
     { $set: { status: "succeeded" } }
   );
 
-  await sendEmail({
-    to: user.email,
-    subject: "Velora coin purchase confirmed",
-    html: paymentConfirmationTemplate(user.name, `$${(payment.amount / 100).toFixed(2)}`, `${coins} coins were added to your account.`)
-  });
+  if (await canSendInvoiceEmail()) {
+    const content = await getPaymentEmailContent(
+      user.name,
+      `$${(payment.amount / 100).toFixed(2)}`,
+      `${coins} coins were added to your account.`
+    );
+    await sendEmail({
+      to: user.email,
+      subject: content.subject,
+      html: content.html
+    });
+  }
 }
 
 async function upsertVipFromStripe(subscription: Stripe.Subscription, fallbackUserId?: string) {
@@ -120,6 +128,7 @@ async function upsertVipFromStripe(subscription: Stripe.Subscription, fallbackUs
   const monthlyCoins = Number(metadata.coins || 0);
 
   user.vip = {
+    provider: "stripe",
     enabled: subscription.status === "active" || subscription.status === "trialing",
     status: subscription.status,
     bonusPercent: Number.isFinite(bonusPercent) ? bonusPercent : 15,
@@ -160,6 +169,8 @@ async function upsertSubscriptionFromStripe(subscription: Stripe.Subscription, f
     status: subscription.status,
     stripeCustomerId: typeof subscription.customer === "string" ? subscription.customer : null,
     stripeSubscriptionId: subscription.id,
+    monthlyAmount: subscription.items.data[0]?.price?.unit_amount || user.subscription?.monthlyAmount || 0,
+    currency: subscription.items.data[0]?.price?.currency || user.subscription?.currency || "usd",
     currentPeriodStart: new Date(subscription.current_period_start * 1000),
     currentPeriodEnd: new Date(subscription.current_period_end * 1000),
     cancelAtPeriodEnd: subscription.cancel_at_period_end
@@ -184,6 +195,7 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event) {
 
     const payment = await Payment.findOne({ stripeCheckoutSessionId: session.id });
     if (payment) {
+      if (!payment.invoiceId) payment.invoiceId = generateInvoiceId("VIP");
       payment.status = "succeeded";
       payment.paidAt = new Date();
       payment.stripeSubscriptionId = subscription.id;
@@ -202,6 +214,7 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event) {
 
     const payment = await Payment.findOne({ stripeCheckoutSessionId: session.id });
     if (payment) {
+      if (!payment.invoiceId) payment.invoiceId = generateInvoiceId("SUB");
       payment.status = "succeeded";
       payment.paidAt = new Date();
       payment.stripeSubscriptionId = subscription.id;
@@ -246,6 +259,7 @@ async function handleInvoicePaid(event: Stripe.Event) {
       amount: invoice.amount_paid,
       currency: invoice.currency,
       status: "succeeded",
+      invoiceId: generateInvoiceId("STRIPE"),
       referenceId: `in_${invoice.id}`,
       stripeInvoiceId: invoice.id,
       stripeSubscriptionId: subscription.id,
@@ -275,15 +289,18 @@ async function handleInvoicePaid(event: Stripe.Event) {
       { upsert: true }
     );
 
-    await sendEmail({
-      to: user.email,
-      subject: "Velora VIP monthly coins delivered",
-      html: paymentConfirmationTemplate(
+    if (await canSendInvoiceEmail()) {
+      const content = await getPaymentEmailContent(
         user.name,
         `$${(invoice.amount_paid / 100).toFixed(2)}`,
         `${vipCoins} VIP coins were added to your account.`
-      )
-    });
+      );
+      await sendEmail({
+        to: user.email,
+        subject: content.subject,
+        html: content.html
+      });
+    }
     return;
   }
 
@@ -293,7 +310,23 @@ async function handleInvoicePaid(event: Stripe.Event) {
   if (payment) {
     payment.status = "succeeded";
     payment.paidAt = new Date();
+    if (!payment.invoiceId) payment.invoiceId = generateInvoiceId("STRIPE");
     await payment.save();
+    if (await canSendInvoiceEmail()) {
+      const user = await User.findById(payment.userId).select("name email");
+      if (user) {
+        const content = await getPaymentEmailContent(
+          user.name,
+          `$${(payment.amount / 100).toFixed(2)}`,
+          `Subscription invoice ${invoice.id} was successfully paid.`
+        );
+        await sendEmail({
+          to: user.email,
+          subject: content.subject,
+          html: content.html
+        });
+      }
+    }
     if (payment.stripeCheckoutSessionId) {
       await Transaction.updateOne(
         { stripeSessionId: payment.stripeCheckoutSessionId },
@@ -312,6 +345,7 @@ async function handleInvoicePaid(event: Stripe.Event) {
     amount: invoice.amount_paid,
     currency: invoice.currency,
     status: "succeeded",
+    invoiceId: generateInvoiceId("STRIPE"),
     referenceId: `in_${invoice.id}`,
     stripeInvoiceId: invoice.id,
     stripeSubscriptionId: subscription.id,
@@ -335,6 +369,22 @@ async function handleInvoicePaid(event: Stripe.Event) {
     },
     { upsert: true }
   );
+
+  if (await canSendInvoiceEmail()) {
+    const user = await User.findById(metadata.userId).select("name email");
+    if (user) {
+      const content = await getPaymentEmailContent(
+        user.name,
+        `$${(invoice.amount_paid / 100).toFixed(2)}`,
+        `Subscription invoice ${invoice.id} was successfully paid.`
+      );
+      await sendEmail({
+        to: user.email,
+        subject: content.subject,
+        html: content.html
+      });
+    }
+  }
 }
 
 async function handlePaymentIntentSucceeded(event: Stripe.Event) {

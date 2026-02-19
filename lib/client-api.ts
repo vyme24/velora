@@ -37,6 +37,7 @@ function shouldSkipAuthModal(input: RequestInfo | URL) {
     value.includes("/api/auth/login") ||
     value.includes("/api/auth/register") ||
     value.includes("/api/auth/verify-otp") ||
+    value.includes("/api/auth/verify-login-otp") ||
     value.includes("/api/auth/forgot-password") ||
     value.includes("/api/auth/reset-password")
   );

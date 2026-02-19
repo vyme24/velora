@@ -75,7 +75,7 @@ function DiscoverSkeleton() {
 }
 
 export default function DiscoverPage() {
-  const { openCoinModal } = useCoinModal();
+  const { openCoinModal, limitedOffer } = useCoinModal();
   const [profiles, setProfiles] = useState<DiscoverUser[]>([]);
   const [liked, setLiked] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
@@ -233,22 +233,27 @@ export default function DiscoverPage() {
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-[#6248ff] to-[#7a5cff] p-5 text-white shadow-lg dark:shadow-primary/20">
-              <div className="absolute inset-0 opacity-20 [background:radial-gradient(circle_at_30%_30%,white,transparent_45%)]" />
-              <div className="relative">
-                <p className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide">
-                  <Sparkles className="h-3 w-3" /> Limited Offer
-                </p>
-                <p className="mt-3 text-3xl font-black leading-none">DOUBLE</p>
-                <p className="mt-1 text-sm">Get <span className="font-black">700 coins</span> for just <span className="font-black">$4.99</span></p>
-                <button
-                  onClick={() => openCoinModal({ reason: "Claim deal now and get coins instantly.", directCheckout: true })}
-                  className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-xl bg-white px-4 text-base font-black text-primary"
-                >
-                  Claim deal now
-                </button>
+            {limitedOffer?.enabled ? (
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-[#6248ff] to-[#7a5cff] p-5 text-white shadow-lg dark:shadow-primary/20">
+                <div className="absolute inset-0 opacity-20 [background:radial-gradient(circle_at_30%_30%,white,transparent_45%)]" />
+                <div className="relative">
+                  <p className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide">
+                    <Sparkles className="h-3 w-3" /> {limitedOffer.badge}
+                  </p>
+                  <p className="mt-3 text-3xl font-black leading-none">{limitedOffer.headline}</p>
+                  <p className="mt-1 text-sm">
+                    Get <span className="font-black">{limitedOffer.coins} coins</span> for just{" "}
+                    <span className="font-black">${(limitedOffer.amountCents / 100).toFixed(2)}</span>
+                  </p>
+                  <button
+                    onClick={() => openCoinModal({ reason: limitedOffer.reason, directCheckout: true })}
+                    className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-xl bg-white px-4 text-base font-black text-primary"
+                  >
+                    {limitedOffer.cta}
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : null}
           </aside>
 
           <section className="space-y-4">

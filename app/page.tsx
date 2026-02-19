@@ -132,17 +132,37 @@ export default function HomePage() {
 
      
 
-      <section className="border-t border-border bg-gradient-to-br from-primary via-primary/90 to-[#6e5cff] text-white">
+      <section className="border-t border-border bg-gradient-to-br from-[#3f2ee8] via-primary to-[#7a6bff] text-white">
         <div className="mx-auto max-w-6xl px-6 py-14">
-          <div className="rounded-3xl border border-white/30 bg-white/10 p-6 backdrop-blur md:p-8">
-            <div className="grid gap-6 md:grid-cols-[1.3fr_1fr] md:items-center">
+          <div className="overflow-hidden rounded-3xl border border-white/30 bg-white/10 p-6 backdrop-blur md:p-8">
+            <div className="grid gap-6 md:grid-cols-[1.2fr_1fr] md:items-center">
               <div>
-                <h2 className="text-3xl font-semibold md:text-4xl">Ready to launch and scale Velora?</h2>
-                <p className="mt-2 text-sm text-white/85">Get product updates, growth insights, and release alerts.</p>
+                <p className="inline-flex rounded-full border border-white/35 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">
+                  Launch Program
+                </p>
+                <h2 className="mt-3 text-3xl font-semibold leading-tight md:text-5xl">Ready to launch and scale Velora?</h2>
+                <p className="mt-3 max-w-xl text-sm text-white/85 md:text-base">
+                  Get growth playbooks, monetization experiments, and release alerts designed for premium dating apps.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">Weekly product brief</span>
+                  <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">Growth benchmarks</span>
+                  <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">Early access features</span>
+                </div>
               </div>
-              <div className="flex flex-col gap-3 sm:flex-row md:flex-col">
-                <input className="h-11 flex-1 rounded-2xl border border-white/40 bg-white/15 px-4 text-sm placeholder:text-white/75" placeholder="Enter email for launch updates" />
-                <GradientButton className="bg-white text-primary shadow-none">Get Launch Access</GradientButton>
+              <div className="rounded-2xl border border-white/25 bg-white/10 p-4">
+                <p className="text-sm font-semibold text-white/95">Get Launch Access</p>
+                <p className="mt-1 text-xs text-white/75">No spam. Only actionable product and revenue updates.</p>
+                <div className="mt-3 space-y-2">
+                  <input
+                    className="h-11 w-full rounded-2xl border border-white/35 bg-white/15 px-4 text-sm placeholder:text-white/70"
+                    placeholder="Enter email for launch updates"
+                  />
+                  <GradientButton className="h-11 w-full bg-white text-primary shadow-none hover:bg-white/90">
+                    Join Launch List
+                  </GradientButton>
+                </div>
+                <p className="mt-2 text-[11px] text-white/70">By joining, you agree to receive product and launch emails.</p>
               </div>
             </div>
           </div>

@@ -22,7 +22,7 @@ const createSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAdminActor(req);
+  const auth = await requireAdminActor(req, { permission: "manage_pricing" });
   if ("response" in auth) return auth.response;
 
   await ensureDefaultPricingPlans();
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!verifyCsrf(req)) return fail("Invalid CSRF token", 403);
 
-  const auth = await requireAdminActor(req, { superOnly: true });
+  const auth = await requireAdminActor(req, { permission: "manage_pricing" });
   if ("response" in auth) return auth.response;
 
   const body = await req.json();

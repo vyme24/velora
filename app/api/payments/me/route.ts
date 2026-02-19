@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const payments = await Payment.find({ userId: auth.user._id })
     .sort({ createdAt: -1 })
     .limit(30)
-    .select("type amount currency status packageId coinsAdded subscriptionPlan createdAt paidAt");
+    .select("type amount currency status packageId coinsAdded subscriptionPlan invoiceId stripeInvoiceId referenceId createdAt paidAt");
 
   return ok({
     items: payments.map((payment) => ({
@@ -22,6 +22,8 @@ export async function GET(req: NextRequest) {
       packageId: payment.packageId || null,
       coinsAdded: payment.coinsAdded || 0,
       subscriptionPlan: payment.subscriptionPlan || null,
+      invoiceId: payment.invoiceId || payment.stripeInvoiceId || payment.referenceId,
+      referenceId: payment.referenceId,
       createdAt: payment.createdAt,
       paidAt: payment.paidAt || null
     }))

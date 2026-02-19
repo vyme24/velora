@@ -9,6 +9,10 @@ import { useCoinModal } from "@/components/coins/coin-modal-provider";
 import { VeloraLogo } from "@/components/brand/velora-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { apiFetch } from "@/lib/client-api";
+import { useI18n } from "@/components/i18n-provider";
+import { LanguageSelector } from "@/components/language-selector";
+import { getAuthMeCached } from "@/lib/client-runtime-cache";
+import { NotificationDropdown } from "@/components/layout/notification-dropdown";
 
 const tabs = [
   { href: "/app/discover", label: "Discover", icon: Compass },
@@ -22,58 +26,94 @@ export function TopTabsHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const { coins, openCoinModal } = useCoinModal();
+  const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   const [name, setName] = useState("User");
   const [role, setRole] = useState<"user" | "admin" | "super_admin">("user");
   const [avatar, setAvatar] = useState("");
   const [newLikes, setNewLikes] = useState(0);
   const [newMessages, setNewMessages] = useState(0);
+  const [newMatches, setNewMatches] = useState(0);
+  const [notificationItems, setNotificationItems] = useState<Array<{ id: string; title: string; subtitle?: string; href: string }>>([]);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function loadMe() {
-      const res = await apiFetch("/api/auth/me", { retryOn401: true });
-      const json = await res.json();
-      if (res.ok) {
-        setName(json.data?.name || "User");
-        setRole(json.data?.role || "user");
-        setAvatar(json.data?.photos?.[0] || "");
+      const me = await getAuthMeCached({ ttlMs: 20_000 });
+      if (me) {
+        setName(me.name || "User");
+        setRole(me.role || "user");
+        setAvatar(me.photos?.[0] || "");
       }
     }
-    loadMe();
+    void loadMe();
   }, []);
 
   useEffect(() => {
     const likesSeenKey = "velora:likes_seen_at";
+    const matchesSeenKey = "velora:matches_seen_at";
 
     async function refreshBadges() {
-      const [likesRes, unreadRes] = await Promise.all([
-        apiFetch("/api/likes", { retryOn401: true }),
-        apiFetch("/api/chat/unread", { retryOn401: true })
-      ]);
+      const summaryRes = await apiFetch("/api/notifications/summary", { retryOn401: true });
+      const summaryJson = await summaryRes.json();
+      if (!summaryRes.ok) return;
 
-      const likesJson = await likesRes.json();
-      const unreadJson = await unreadRes.json();
+      const recentLikes = summaryJson.data?.recentLikes || [];
+      const recentMatches = summaryJson.data?.recentMatches || [];
 
-      if (likesRes.ok) {
+      {
         const seenRaw = window.localStorage.getItem(likesSeenKey);
         const seenAt = seenRaw ? new Date(seenRaw) : new Date(0);
-        const received = likesJson.data?.received || [];
-        const unseenLikes = received.filter((item: { createdAt?: string }) => {
+        const unseenLikes = recentLikes.filter((item: { createdAt?: string }) => {
           if (!item.createdAt) return false;
           return new Date(item.createdAt).getTime() > seenAt.getTime();
         });
         setNewLikes(unseenLikes.length);
       }
 
-      if (unreadRes.ok) {
-        setNewMessages(Number(unreadJson.data?.count || 0));
+      {
+        const seenRaw = window.localStorage.getItem(matchesSeenKey);
+        const seenAt = seenRaw ? new Date(seenRaw) : new Date(0);
+        const unseenMatches = recentMatches.filter((item: { matchedAt?: string }) => {
+          if (!item.matchedAt) return false;
+          return new Date(item.matchedAt).getTime() > seenAt.getTime();
+        });
+        setNewMatches(unseenMatches.length);
       }
+
+      setNewMessages(Number(summaryJson.data?.unreadMessages || 0));
+
+      const items: Array<{ id: string; title: string; subtitle?: string; href: string }> = [];
+      recentLikes.slice(0, 3).forEach((entry: { _id: string; user?: { name?: string } }) => {
+        items.push({
+          id: `like-${entry._id}`,
+          title: `${entry.user?.name || "Someone"} liked your profile`,
+          subtitle: "Open Likes",
+          href: "/app/likes"
+        });
+      });
+      recentMatches.slice(0, 3).forEach((entry: { _id: string; user?: { name?: string } }) => {
+        items.push({
+          id: `match-${entry._id}`,
+          title: `New match with ${entry.user?.name || "a user"}`,
+          subtitle: "Open Matches",
+          href: "/app/matches"
+        });
+      });
+      if (Number(summaryJson.data?.unreadMessages || 0) > 0) {
+        items.unshift({
+          id: "messages-unread",
+          title: `${Number(summaryJson.data?.unreadMessages || 0)} unread messages`,
+          subtitle: "Open Messages",
+          href: "/app/messages"
+        });
+      }
+      setNotificationItems(items.slice(0, 8));
     }
 
-    refreshBadges();
+    void refreshBadges();
     const interval = window.setInterval(refreshBadges, 12000);
-    const sync = () => refreshBadges();
+    const sync = () => void refreshBadges();
     window.addEventListener("velora:badge-sync", sync);
 
     return () => {
@@ -81,6 +121,17 @@ export function TopTabsHeader() {
       window.removeEventListener("velora:badge-sync", sync);
     };
   }, []);
+
+  useEffect(() => {
+    if (pathname === "/app/likes") {
+      window.localStorage.setItem("velora:likes_seen_at", new Date().toISOString());
+      setNewLikes(0);
+    }
+    if (pathname === "/app/matches") {
+      window.localStorage.setItem("velora:matches_seen_at", new Date().toISOString());
+      setNewMatches(0);
+    }
+  }, [pathname]);
 
   useEffect(() => {
     function onOutside(event: MouseEvent) {
@@ -123,7 +174,7 @@ export function TopTabsHeader() {
                   href={tab.href}
                   className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${
                     active
-                      ? "bg-primary text-primary-foreground shadow-sm"
+                    ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-foreground/75 hover:bg-muted"
                   }`}
                 >
@@ -139,8 +190,13 @@ export function TopTabsHeader() {
                         {newLikes > 99 ? "99+" : newLikes}
                       </span>
                     ) : null}
+                    {tab.href === "/app/matches" && newMatches > 0 ? (
+                      <span className="absolute -right-2 -top-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                        {newMatches > 99 ? "99+" : newMatches}
+                      </span>
+                    ) : null}
                   </span>
-                  {tab.label}
+                  {t(`nav.${tab.label.toLowerCase()}`, tab.label)}
                 </Link>
               );
             })}
@@ -151,7 +207,7 @@ export function TopTabsHeader() {
           <div className="inline-flex items-center gap-1.5 rounded-2xl border border-primary/25 bg-gradient-to-b from-primary/12 to-primary/5 p-1.5 shadow-sm">
             <button
               onClick={() => openCoinModal()}
-              className="inline-flex h-8 items-center gap-1.5 rounded-xl px-2.5 text-sm font-semibold text-primary"
+              className="inline-flex h-8 items-center gap-1 rounded-xl px-1 text-sm font-semibold text-primary"
               aria-label="Open coin packages"
             >
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/15">
@@ -162,13 +218,15 @@ export function TopTabsHeader() {
             <button
               onClick={() => openCoinModal()}
               className="inline-flex h-8 items-center justify-center gap-1 rounded-full bg-primary px-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-primary/90"
-              aria-label="Add coins"
+              aria-label={t("coins.add", "Add Coins")}
             >
               <Plus className="h-3.5 w-3.5" />
-              Coins
+           
             </button>
           </div>
 
+          <LanguageSelector />
+          <NotificationDropdown items={notificationItems} unreadCount={newLikes + newMatches + newMessages} />
           <ThemeToggle />
 
           <div className="relative" ref={menuRef}>
@@ -214,7 +272,7 @@ export function TopTabsHeader() {
                     className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition hover:bg-muted"
                   >
                     <User className="h-4 w-4 text-primary" />
-                    Profile
+                    {t("header.profile", "Profile")}
                   </Link>
                   <Link
                     href="/app/settings"
@@ -222,7 +280,7 @@ export function TopTabsHeader() {
                     className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition hover:bg-muted"
                   >
                     <Settings className="h-4 w-4 text-primary" />
-                    Settings
+                    {t("header.settings", "Settings")}
                   </Link>
                   <Link
                     href="/app/billing"
@@ -230,7 +288,7 @@ export function TopTabsHeader() {
                     className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition hover:bg-muted"
                   >
                     <ReceiptText className="h-4 w-4 text-primary" />
-                    Billing & history
+                    {t("header.billing", "Billing & history")}
                   </Link>
                   {role !== "user" ? (
                     <Link
@@ -239,7 +297,7 @@ export function TopTabsHeader() {
                       className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition hover:bg-muted"
                     >
                       <Shield className="h-4 w-4 text-primary" />
-                      Admin
+                      {t("header.admin", "Admin")}
                     </Link>
                   ) : null}
                   <button
@@ -247,7 +305,7 @@ export function TopTabsHeader() {
                     className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm transition hover:bg-muted"
                   >
                     <LogOut className="h-4 w-4 text-primary" />
-                    Logout
+                    {t("header.logout", "Logout")}
                   </button>
                 </div>
               </div>
@@ -280,8 +338,13 @@ export function TopTabsHeader() {
                     {newLikes > 99 ? "99+" : newLikes}
                   </span>
                 ) : null}
+                {tab.href === "/app/matches" && newMatches > 0 ? (
+                  <span className="absolute -right-2 -top-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                    {newMatches > 99 ? "99+" : newMatches}
+                  </span>
+                ) : null}
               </span>
-              {tab.label}
+              {t(`nav.${tab.label.toLowerCase()}`, tab.label)}
             </Link>
           );
         })}

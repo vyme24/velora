@@ -1,5 +1,5 @@
-import { AdminControlCenter } from "@/components/admin/admin-control-center";
+import { AdminPaymentsPageContent } from "@/components/admin/pages/payments-page";
 
 export default function AdminPaymentsPage() {
-  return <AdminControlCenter tab="payments" />;
+  return <AdminPaymentsPageContent />;
 }

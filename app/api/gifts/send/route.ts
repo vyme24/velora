@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
       sender: auth.user._id,
       receiver: receiver._id,
       message: `sent you a virtual gift: ${gift.name}`,
+      image: gift.image,
       metadata: {
         type: "system",
         requiresCoins: true,
@@ -105,4 +106,3 @@ export async function POST(req: NextRequest) {
     );
   });
 }
-

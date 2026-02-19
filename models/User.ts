@@ -54,7 +54,7 @@ const userSchema = new Schema(
         default: "none"
       }
     },
-    coins: { type: Number, default: 0 },
+    coins: { type: Number, default: 100 },
     freeMessageQuota: { type: Number, default: 5 },
     boostsAvailable: { type: Number, default: 0 },
     lastBoostAt: { type: Date, default: null },
@@ -65,7 +65,7 @@ const userSchema = new Schema(
       index: true
     },
     subscription: {
-      provider: { type: String, enum: ["stripe", "razorpay"], default: null },
+      provider: { type: String, enum: ["stripe", "razorpay", "internal"], default: null },
       status: {
         type: String,
         enum: [
@@ -84,11 +84,14 @@ const userSchema = new Schema(
       },
       stripeCustomerId: { type: String, default: null, index: true },
       stripeSubscriptionId: { type: String, default: null, index: true },
+      monthlyAmount: { type: Number, default: 0 },
+      currency: { type: String, default: "usd" },
       currentPeriodStart: { type: Date, default: null },
       currentPeriodEnd: { type: Date, default: null },
       cancelAtPeriodEnd: { type: Boolean, default: false }
     },
     vip: {
+      provider: { type: String, enum: ["stripe", "razorpay", "internal"], default: null },
       enabled: { type: Boolean, default: false, index: true },
       status: {
         type: String,
@@ -123,6 +126,11 @@ const userSchema = new Schema(
       type: String,
       enum: ["user", "admin", "super_admin"],
       default: "user",
+      index: true
+    },
+    staffRoleKey: {
+      type: String,
+      default: null,
       index: true
     },
     accountStatus: {

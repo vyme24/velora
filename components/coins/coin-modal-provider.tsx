@@ -3,18 +3,36 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Coins, X } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
+import { useI18n } from "@/components/i18n-provider";
+import { getAuthMeCached, getCoinPackagesCached, getLimitedOfferCached, invalidateRuntimeCache } from "@/lib/client-runtime-cache";
 
 type CoinPackage = {
   id: string;
   coins: number;
   amount: number;
+  currency: string;
   label: string;
   badge: string;
   extra: number;
 };
 
+type LimitedOffer = {
+  enabled: boolean;
+  code: string;
+  badge: string;
+  headline: string;
+  coins: number;
+  amountCents: number;
+  currency?: string;
+  cta: string;
+  reason: string;
+  label: string;
+  subtext: string;
+};
+
 type CoinModalContextValue = {
   coins: number;
+  limitedOffer: LimitedOffer | null;
   openCoinModal: (options?: string | { reason?: string; packageId?: string; directCheckout?: boolean }) => void;
   closeCoinModal: () => void;
   refreshCoins: () => Promise<void>;
@@ -23,10 +41,6 @@ type CoinModalContextValue = {
 const CoinModalContext = createContext<CoinModalContextValue | null>(null);
 const VIP_BONUS_PERCENT = 15;
 const VIP_MULTIPLIER = 1 + VIP_BONUS_PERCENT / 100;
-
-function formatUsd(amountCents: number) {
-  return `$${(amountCents / 100).toFixed(2)}`;
-}
 
 function getTierTone(pkg: CoinPackage) {
   const key = `${pkg.id} ${pkg.label} ${pkg.badge}`.toLowerCase();
@@ -38,6 +52,7 @@ function getTierTone(pkg: CoinPackage) {
 }
 
 export function CoinModalProvider({ children }: { children: React.ReactNode }) {
+  const { formatMoney, currency: defaultCurrency } = useI18n();
   const [coins, setCoins] = useState(0);
   const [open, setOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -49,38 +64,24 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
   const [vipTrial, setVipTrial] = useState(false);
   const [pendingDirectCheckout, setPendingDirectCheckout] = useState(false);
   const [directOnlyFlow, setDirectOnlyFlow] = useState(false);
-  const [activeOffer, setActiveOffer] = useState<null | { code: "limited_700_499"; label: string; coins: number; amount: number }>(null);
+  const [limitedOffer, setLimitedOffer] = useState<LimitedOffer | null>(null);
+  const [activeOffer, setActiveOffer] = useState<null | { code: string; label: string; coins: number; amount: number; currency?: string }>(null);
 
-  const refreshCoins = useCallback(async () => {
-    const res = await apiFetch("/api/auth/me", { retryOn401: true });
-    const json = await res.json();
-    if (res.ok) setCoins(json.data.coins ?? 0);
+  const refreshCoins = useCallback(async (force = false) => {
+    const me = await getAuthMeCached({ force, ttlMs: 10_000 });
+    if (me) setCoins(me.coins ?? 0);
   }, []);
 
-  const loadPackages = useCallback(async () => {
-    const res = await apiFetch("/api/coins/packages");
-    const json = await res.json();
-    if (res.ok) {
-      const nextPackages = json.data || [];
-      setPackages(nextPackages);
-      if (nextPackages?.length && !selectedId) setSelectedId(nextPackages[0].id);
-      if (pendingDirectCheckout) {
-        const offer =
-          nextPackages.find((pkg: CoinPackage) => pkg.amount === 499 && pkg.coins >= 700) ||
-          nextPackages.find((pkg: CoinPackage) => pkg.amount === 499) ||
-          nextPackages[0];
-        if (offer?.id) setSelectedId(offer.id);
-        setCheckoutOpen(true);
-        setPendingDirectCheckout(false);
-      }
-      return;
-    }
+  const loadPackages = useCallback(async (force = false) => {
+    const nextPackages = (await getCoinPackagesCached({ force, ttlMs: 60_000 })) || [];
+    setPackages(nextPackages);
+    setSelectedId((current) => current || nextPackages[0]?.id || "");
+  }, []);
 
-    if (pendingDirectCheckout) {
-      setPendingDirectCheckout(false);
-      setDirectOnlyFlow(false);
-    }
-  }, [pendingDirectCheckout, selectedId]);
+  const loadLimitedOffer = useCallback(async (force = false) => {
+    const offer = await getLimitedOfferCached({ force, ttlMs: 60_000 });
+    setLimitedOffer(offer || null);
+  }, []);
 
   const openCoinModal = useCallback((options?: string | { reason?: string; packageId?: string; directCheckout?: boolean }) => {
     const resolved =
@@ -91,10 +92,19 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
     if (resolved.reason) setReason(resolved.reason);
     setDirectOnlyFlow(Boolean(resolved.directCheckout));
     setActiveOffer(
-      resolved.directCheckout
-        ? { code: "limited_700_499", label: "Limited Offer DOUBLE", coins: 700, amount: 499 }
+      resolved.directCheckout && limitedOffer?.enabled
+        ? {
+            code: limitedOffer.code,
+            label: limitedOffer.label,
+            coins: limitedOffer.coins,
+            amount: limitedOffer.amountCents,
+            currency: limitedOffer.currency || defaultCurrency
+          }
         : null
     );
+    if (!resolved.reason && resolved.directCheckout && limitedOffer?.reason) {
+      setReason(limitedOffer.reason);
+    }
     if (resolved.directCheckout) setVipTrial(false);
     setOpen(true);
 
@@ -107,13 +117,12 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
 
       const offer =
         (resolved.packageId ? packages.find((pkg) => pkg.id === resolved.packageId) : null) ||
-        packages.find((pkg) => pkg.amount === 499 && pkg.coins >= 700) ||
-        packages.find((pkg) => pkg.amount === 499) ||
+        (limitedOffer?.enabled ? packages.find((pkg) => pkg.amount === limitedOffer.amountCents) : null) ||
         packages[0];
       if (offer?.id) setSelectedId(offer.id);
       setCheckoutOpen(true);
     }
-  }, [loadPackages, packages]);
+  }, [defaultCurrency, limitedOffer, loadPackages, packages]);
 
   function closeCoinModal() {
     setOpen(false);
@@ -125,9 +134,21 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    refreshCoins();
-    loadPackages();
-  }, [refreshCoins, loadPackages]);
+    void refreshCoins();
+    void loadPackages();
+    void loadLimitedOffer();
+  }, [refreshCoins, loadPackages, loadLimitedOffer]);
+
+  useEffect(() => {
+    if (!pendingDirectCheckout) return;
+    if (!packages.length) return;
+    const offer =
+      (limitedOffer?.enabled ? packages.find((pkg) => pkg.amount === limitedOffer.amountCents) : null) ||
+      packages[0];
+    if (offer?.id) setSelectedId(offer.id);
+    setCheckoutOpen(true);
+    setPendingDirectCheckout(false);
+  }, [limitedOffer, packages, pendingDirectCheckout]);
 
   useEffect(() => {
     const syncFromEvent = (event: Event) => {
@@ -136,24 +157,21 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
         setCoins(custom.detail.coins);
         return;
       }
-      refreshCoins();
+      void refreshCoins();
     };
 
-    const refreshOnFocus = () => refreshCoins();
+    const refreshOnFocus = () => {
+      void refreshCoins();
+    };
     const refreshOnVisibility = () => {
-      if (!document.hidden) refreshCoins();
+      if (!document.hidden) void refreshCoins();
     };
-
-    const interval = window.setInterval(() => {
-      refreshCoins();
-    }, 8000);
 
     window.addEventListener("velora:coin-sync", syncFromEvent as EventListener);
     window.addEventListener("focus", refreshOnFocus);
     document.addEventListener("visibilitychange", refreshOnVisibility);
 
     return () => {
-      window.clearInterval(interval);
       window.removeEventListener("velora:coin-sync", syncFromEvent as EventListener);
       window.removeEventListener("focus", refreshOnFocus);
       document.removeEventListener("visibilitychange", refreshOnVisibility);
@@ -164,7 +182,7 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
     const handler = (event: Event) => {
       const custom = event as CustomEvent<{ reason?: string }>;
       openCoinModal(custom.detail?.reason || "Insufficient coins");
-      refreshCoins();
+      void refreshCoins(true);
     };
 
     window.addEventListener("velora:coin-required", handler as EventListener);
@@ -179,9 +197,8 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
     if (!termsAccepted) return;
 
     setLoading(true);
-    const meRes = await apiFetch("/api/auth/me", { retryOn401: true });
-    const meJson = await meRes.json();
-    if (!meRes.ok) {
+    const me = (await getAuthMeCached({ ttlMs: 5_000 })) || (await getAuthMeCached({ force: true, ttlMs: 5_000 }));
+    if (!me?.userId) {
       setLoading(false);
       return;
     }
@@ -191,7 +208,7 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
       headers: { "Content-Type": "application/json" },
       includeCsrf: true,
       body: JSON.stringify({
-        userId: meJson.data.userId,
+        userId: me.userId,
         mode: "coins",
         packageId: selected.id,
         vipEnabled: activeOffer ? false : vipTrial,
@@ -204,11 +221,24 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
 
     if (res.ok && json.data?.checkoutUrl) {
       window.location.href = json.data.checkoutUrl;
+      return;
+    }
+
+    if (res.ok && json.data?.internalProcessed) {
+      const nextCoins = Number(json.data?.coins ?? coins);
+      if (Number.isFinite(nextCoins)) {
+        setCoins(nextCoins);
+        invalidateRuntimeCache("authMe");
+        window.dispatchEvent(new CustomEvent("velora:coin-sync", { detail: { coins: nextCoins } }));
+      } else {
+        void refreshCoins(true);
+      }
+      closeCoinModal();
     }
   }
 
   return (
-    <CoinModalContext.Provider value={{ coins, openCoinModal, closeCoinModal, refreshCoins }}>
+    <CoinModalContext.Provider value={{ coins, limitedOffer, openCoinModal, closeCoinModal, refreshCoins }}>
       {children}
       {open ? (
         <div className="fixed inset-0 z-[80] grid place-items-center bg-black/45 p-4">
@@ -282,7 +312,7 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-semibold md:text-3xl">{formatUsd(pkg.amount)}</p>
+                        <p className="text-2xl font-semibold md:text-3xl">{formatMoney(pkg.amount, pkg.currency || defaultCurrency)}</p>
                         <p className="mt-1 text-[11px] text-foreground/60">{featured ? "Best entry plan" : "One-time payment"}</p>
                       </div>
                     </div>
@@ -339,7 +369,7 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
               </div>
               <div className="mt-2 flex items-center justify-between text-sm">
                 <span className="text-foreground/70">Amount</span>
-                <span className="text-xl font-bold">{formatUsd(activeOffer?.amount ?? selected.amount)}{activeOffer ? "" : vipTrial ? "/month" : ""}</span>
+                <span className="text-xl font-bold">{formatMoney(activeOffer?.amount ?? selected.amount, activeOffer?.currency || selected.currency || defaultCurrency)}{activeOffer ? "" : vipTrial ? "/month" : ""}</span>
               </div>
             </div>
 
@@ -361,10 +391,10 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
               disabled={loading || !termsAccepted}
               className="mt-6 block h-12 w-full rounded-2xl bg-primary px-6 text-base font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
             >
-              {loading ? "Redirecting to Stripe..." : "Continue to Stripe Checkout"}
+              {loading ? "Processing..." : "Complete purchase"}
             </button>
 
-            <p className="mt-4 text-center text-xs text-foreground/60">Secure checkout powered by Stripe. Available methods (card, Apple Pay, Google Pay) will be shown by Stripe based on your device/browser.</p>
+            <p className="mt-4 text-center text-xs text-foreground/60">Secure checkout. VIP subscriptions are now handled directly inside your Velora account with recurring renewal management.</p>
           </div>
         </div>
       ) : null}

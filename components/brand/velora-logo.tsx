@@ -14,7 +14,7 @@ export function VeloraLogo({ href = "/", className, compact = false, light = fal
       <span
         className={cn(
           "text-2xl font-black tracking-tight",
-          compact ? "text-xl" : "text-2xl",
+          compact ? "text-3xl" : "text-2xl",
           light ? "text-white" : "text-primary"
         )}
       >

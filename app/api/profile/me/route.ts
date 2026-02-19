@@ -5,6 +5,7 @@ import { verifyCsrf } from "@/lib/csrf";
 import { updateMeSchema } from "@/lib/validations/profile";
 import { User } from "@/models/User";
 import { calculateAgeFromDob, isAdultDob, toDateOnlyString } from "@/lib/dob";
+import { getNotificationRuntimeSettings } from "@/lib/app-settings";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuthUser(req);
@@ -118,13 +119,20 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (data.notifications) {
+    const notificationConfig = await getNotificationRuntimeSettings();
+    const allowEmail = notificationConfig.emailEnabled;
+    const allowPush = notificationConfig.pushEnabled;
+    const allowMessage = notificationConfig.newMessageEnabled;
+    const allowMatch = notificationConfig.newMatchEnabled;
+    const allowMarketing = notificationConfig.marketingEnabled;
+
     user.notifications = {
       ...(user.notifications || {}),
-      emailMessages: data.notifications.emailMessages ?? user.notifications?.emailMessages ?? true,
-      emailMatches: data.notifications.emailMatches ?? user.notifications?.emailMatches ?? true,
-      emailPromotions: data.notifications.emailPromotions ?? user.notifications?.emailPromotions ?? false,
-      pushMessages: data.notifications.pushMessages ?? user.notifications?.pushMessages ?? true,
-      pushMatches: data.notifications.pushMatches ?? user.notifications?.pushMatches ?? true
+      emailMessages: allowEmail && allowMessage ? (data.notifications.emailMessages ?? user.notifications?.emailMessages ?? true) : false,
+      emailMatches: allowEmail && allowMatch ? (data.notifications.emailMatches ?? user.notifications?.emailMatches ?? true) : false,
+      emailPromotions: allowEmail && allowMarketing ? (data.notifications.emailPromotions ?? user.notifications?.emailPromotions ?? false) : false,
+      pushMessages: allowPush && allowMessage ? (data.notifications.pushMessages ?? user.notifications?.pushMessages ?? true) : false,
+      pushMatches: allowPush && allowMatch ? (data.notifications.pushMatches ?? user.notifications?.pushMatches ?? true) : false
     };
   }
 

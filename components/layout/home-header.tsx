@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import { VeloraLogo } from "@/components/brand/velora-logo";
 import { OpenAuthModalButton } from "@/components/auth/open-auth-modal-button";
+import { useI18n } from "@/components/i18n-provider";
+import { LanguageSelector } from "@/components/language-selector";
 
 export function HomeHeader() {
   const [scrolled, setScrolled] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -25,16 +28,17 @@ export function HomeHeader() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <VeloraLogo light={!scrolled} href="/" />
         <div className="flex items-center gap-2">
+          <LanguageSelector className={scrolled ? "" : "border-white/20 bg-white/10 text-white"} />
           <OpenAuthModalButton
             mode="login"
-            label="Login"
+            label={t("auth.login", "Login")}
             className={`h-10 rounded-2xl px-4 text-sm font-semibold ${
               scrolled ? "border border-border bg-card text-foreground" : "bg-white/10 text-white"
             }`}
           />
           <OpenAuthModalButton
             mode="join"
-            label="Join Now"
+            label={t("auth.join_now", "Join Now")}
             className="h-10 rounded-2xl bg-white px-4 text-sm font-semibold text-primary"
           />
         </div>

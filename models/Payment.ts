@@ -3,7 +3,7 @@ import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 const paymentSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    provider: { type: String, enum: ["stripe", "razorpay"], required: true },
+    provider: { type: String, enum: ["stripe", "razorpay", "internal"], required: true },
     type: { type: String, enum: ["subscription", "coin"], required: true, index: true },
     amount: { type: Number, required: true },
     currency: { type: String, default: "usd" },
@@ -13,6 +13,7 @@ const paymentSchema = new Schema(
       default: "pending",
       index: true
     },
+    invoiceId: { type: String, required: true, unique: true, index: true },
     referenceId: { type: String, required: true, unique: true },
     stripeCheckoutSessionId: { type: String, default: null, index: true },
     stripePaymentIntentId: { type: String, default: null, index: true },

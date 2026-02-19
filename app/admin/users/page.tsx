@@ -1,5 +1,5 @@
-import { AdminControlCenter } from "@/components/admin/admin-control-center";
+import { AdminUsersPageContent } from "@/components/admin/pages/users-page";
 
 export default function AdminUsersPage() {
-  return <AdminControlCenter tab="users" />;
+  return <AdminUsersPageContent />;
 }

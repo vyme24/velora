@@ -1,5 +1,5 @@
-import { AdminControlCenter } from "@/components/admin/admin-control-center";
+import { AdminPricingPageContent } from "@/components/admin/pages/pricing-page";
 
 export default function AdminPricingPage() {
-  return <AdminControlCenter tab="pricing" />;
+  return <AdminPricingPageContent />;
 }

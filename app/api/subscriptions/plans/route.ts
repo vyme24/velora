@@ -13,7 +13,9 @@ export async function GET() {
       label: plan.label,
       badge: plan.badge || "",
       amount: plan.amount,
-      currency: plan.currency || "usd"
+      currency: plan.currency || "usd",
+      billingCycleDays: 30,
+      provider: "internal"
     }))
   );
 }

@@ -1,5 +1,5 @@
-import { AdminControlCenter } from "@/components/admin/admin-control-center";
+import { AdminSettingsPageContent } from "@/components/admin/pages/settings-page";
 
 export default function AdminSettingsPage() {
-  return <AdminControlCenter tab="settings" />;
+  return <AdminSettingsPageContent />;
 }

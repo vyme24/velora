@@ -67,6 +67,8 @@ export async function ensureStripeCustomerForUser(
     ...(user.subscription || {}),
     provider: "stripe",
     status: user.subscription?.status || "none",
+    monthlyAmount: user.subscription?.monthlyAmount || 0,
+    currency: user.subscription?.currency || "usd",
     cancelAtPeriodEnd: Boolean(user.subscription?.cancelAtPeriodEnd),
     stripeCustomerId: customer.id
   };

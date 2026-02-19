@@ -1,5 +1,5 @@
-import { AdminControlCenter } from "@/components/admin/admin-control-center";
+import { AdminOverviewPage } from "@/components/admin/pages/overview-page";
 
 export default function AdminPage() {
-  return <AdminControlCenter tab="overview" />;
+  return <AdminOverviewPage />;
 }

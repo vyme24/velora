@@ -6,9 +6,10 @@ import { registerSchema } from "@/lib/validations/auth";
 import { fail, ok } from "@/lib/http";
 import { User } from "@/models/User";
 import { OtpCode } from "@/models/OtpCode";
-import { otpEmailTemplate, sendEmail, welcomeEmailTemplate } from "@/lib/email";
+import { canSendUserNotificationEmail, getOtpEmailContent, getWelcomeEmailContent, sendEmail } from "@/lib/email";
 import { setAuthCookies } from "@/lib/session";
 import { calculateAgeFromDob, isAdultDob } from "@/lib/dob";
+import { getSystemSettings } from "@/lib/app-settings";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest) {
   }
 
   await connectToDatabase();
+  const system = await getSystemSettings();
 
   const existing = await User.findOne({ email: parsed.data.email });
   if (existing) {
@@ -45,10 +47,19 @@ export async function POST(req: NextRequest) {
     dob: new Date(input.dob),
     age,
     password,
-    isVerified: process.env.NODE_ENV !== "production"
+    isVerified: process.env.NODE_ENV !== "production" || !system.requireOtpRegistration
   });
 
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" || !system.requireOtpRegistration) {
+    if (await canSendUserNotificationEmail()) {
+      const welcome = await getWelcomeEmailContent(user.name);
+      await sendEmail({
+        to: user.email,
+        subject: welcome.subject,
+        html: welcome.html
+      });
+    }
+
     const accessToken = signAuthToken({ userId: String(user._id), role: user.role });
     const refreshToken = signRefreshToken({ userId: String(user._id), role: user.role });
 
@@ -67,6 +78,10 @@ export async function POST(req: NextRequest) {
 
   const otp = generateOtp();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  await OtpCode.updateMany(
+    { userId: user._id, purpose: "email_verification", consumedAt: null },
+    { $set: { consumedAt: new Date() } }
+  );
 
   await OtpCode.create({
     userId: user._id,
@@ -76,24 +91,31 @@ export async function POST(req: NextRequest) {
     expiresAt
   });
 
+  const otpEmail = await getOtpEmailContent(user.name, otp);
   const emailResult = await sendEmail({
     to: user.email,
-    subject: "Velora verification code",
-    html: otpEmailTemplate(user.name, otp)
+    subject: otpEmail.subject,
+    html: otpEmail.html
   });
+  if ("skipped" in emailResult && emailResult.skipped) {
+    return fail("OTP email service is not configured. Please configure SMTP in Admin > Settings > SMTP.", 503);
+  }
 
-  await sendEmail({
-    to: user.email,
-    subject: "Welcome to Velora",
-    html: welcomeEmailTemplate(user.name)
-  });
+  if (await canSendUserNotificationEmail()) {
+    const welcome = await getWelcomeEmailContent(user.name);
+    await sendEmail({
+      to: user.email,
+      subject: welcome.subject,
+      html: welcome.html
+    });
+  }
 
   return ok(
     {
       userId: String(user._id),
       verificationRequired: true,
-      devOtp:
-        process.env.NODE_ENV !== "production" && "skipped" in emailResult && emailResult.skipped ? otp : undefined
+      otpExpiresInSec: 600,
+      resendCooldownSec: 60
     },
     { status: 201 }
   );

@@ -36,6 +36,7 @@ type MessageItem = {
   _id: string;
   sender: string;
   message: string;
+  image?: string;
   createdAt: string;
   metadata?: {
     type?: "text" | "image" | "system";

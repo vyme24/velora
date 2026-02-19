@@ -9,7 +9,24 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "randomuser.me"
+      },
+      {
+        protocol: "https",
+        hostname: "avatars.dicebear.com"
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com"
+      },
+      {
+        protocol: "https",
+        hostname: "img.icons8.com"
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com"
       }
+
     ]
   }
 };

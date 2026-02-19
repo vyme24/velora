@@ -1,13 +1,13 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Flame, MapPin } from "lucide-react";
+import { Flame } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { interestToSlug, milesFromId, slugToInterestLabel, type ExploreUser } from "@/lib/explore";
+import { ProfileCard } from "@/components/profile/profile-card";
 
 const categoryMeta: Record<string, { title: string; subtitle: string }> = {
   all: { title: "All Profiles", subtitle: "Curated for you" },
@@ -15,12 +15,6 @@ const categoryMeta: Record<string, { title: string; subtitle: string }> = {
   nearby: { title: "Nearby", subtitle: "Local connections" },
   private: { title: "Private Photos", subtitle: "Unlock premium" }
 };
-
-function scoreFromId(id: string) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i += 1) hash = (hash + id.charCodeAt(i) * (i + 3)) % 99;
-  return Math.max(72, hash);
-}
 
 function ExploreResultSkeleton() {
   return (
@@ -51,6 +45,7 @@ export default function ExploreCategoryPage() {
 
   const [profiles, setProfiles] = useState<ExploreUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [liked, setLiked] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     (async () => {
@@ -61,6 +56,22 @@ export default function ExploreCategoryPage() {
       setLoading(false);
     })();
   }, []);
+
+  async function onLike(receiverId: string) {
+    if (liked[receiverId]) return;
+    setLiked((prev) => ({ ...prev, [receiverId]: true }));
+
+    const res = await apiFetch("/api/like", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      includeCsrf: true,
+      body: JSON.stringify({ receiverId })
+    });
+
+    if (!res.ok) {
+      setLiked((prev) => ({ ...prev, [receiverId]: false }));
+    }
+  }
 
   const filtered = useMemo(() => {
     if (category === "online") return profiles.filter((entry) => Boolean(entry.isOnline));
@@ -113,22 +124,12 @@ export default function ExploreCategoryPage() {
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
             {filtered.map((profile) => (
-              <Link
+              <ProfileCard
                 key={profile._id}
-                href={`/app/profile/${profile._id}`}
-                className="group overflow-hidden rounded-3xl border border-border/80 bg-card shadow-sm transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl"
-              >
-                <div className="relative block aspect-[4/5]">
-                  <Image src={profile.photos?.[0] || "/profiles/ava.svg"} alt={profile.name} fill className="object-cover transition duration-500 group-hover:scale-105" />
-                  <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                  <span className="absolute left-2 top-2 rounded-full bg-primary px-2 py-1 text-[10px] font-semibold text-white">{scoreFromId(profile._id)}% MATCH</span>
-                  {profile.isOnline ? <span className="absolute right-2 top-2 rounded-full bg-emerald-500 px-2 py-1 text-[10px] font-semibold text-white">ONLINE</span> : null}
-                  <div className="absolute inset-x-0 bottom-0 p-3 text-white">
-                    <p className="text-base font-semibold leading-none">{profile.name} <span className="font-normal text-white/80">{profile.age}</span></p>
-                    <p className="mt-1 inline-flex items-center gap-1 text-xs text-white/85"><MapPin className="h-3.5 w-3.5" /> {profile.location?.city || "Nearby"} • {milesFromId(profile._id)} miles</p>
-                  </div>
-                </div>
-              </Link>
+                profile={profile}
+                liked={Boolean(liked[profile._id])}
+                onLike={onLike}
+              />
             ))}
           </div>
         </section>

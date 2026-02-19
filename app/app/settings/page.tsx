@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Crown, Gem, Loader2, Save, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Save, ShieldCheck } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { apiFetch } from "@/lib/client-api";
 import { Toast } from "@/components/ui/toast";
@@ -38,15 +39,6 @@ type ProfileSettings = {
   };
 };
 
-type SubscriptionPlan = {
-  id: string;
-  key: "gold" | "platinum";
-  label: string;
-  badge?: string;
-  amount: number;
-  currency: string;
-};
-
 const emptySettings: ProfileSettings = {
   name: "",
   email: "",
@@ -73,21 +65,18 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingAction, setLoadingAction] = useState("");
   const [toast, setToast] = useState("");
-  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
 
-      const [meRes, profileRes, planRes] = await Promise.all([
+      const [meRes, profileRes] = await Promise.all([
         apiFetch("/api/auth/me", { retryOn401: true }),
-        apiFetch("/api/profile/me", { retryOn401: true }),
-        apiFetch("/api/subscriptions/plans")
+        apiFetch("/api/profile/me", { retryOn401: true })
       ]);
 
       const meJson = await meRes.json();
       const profileJson = await profileRes.json();
-      const planJson = await planRes.json();
 
       if (meRes.ok) setMe(meJson.data);
       if (profileRes.ok) {
@@ -114,8 +103,6 @@ export default function SettingsPage() {
           }
         });
       }
-      if (planRes.ok) setPlans(planJson.data || []);
-
       setLoading(false);
     })();
   }, []);
@@ -153,24 +140,6 @@ export default function SettingsPage() {
       return;
     }
     showToast(successText);
-  }
-
-  async function startSubscription(plan: "gold" | "platinum") {
-    if (!me?.userId) return;
-    setLoadingAction(`buy-${plan}`);
-    const res = await apiFetch("/api/stripe/create-checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      includeCsrf: true,
-      body: JSON.stringify({ mode: "subscription", plan })
-    });
-    const json = await res.json();
-    setLoadingAction("");
-    if (!res.ok) {
-      showToast(json.message || "Unable to start subscription checkout");
-      return;
-    }
-    if (json.data?.checkoutUrl) window.location.href = json.data.checkoutUrl;
   }
 
   async function openPortal() {
@@ -354,21 +323,33 @@ export default function SettingsPage() {
               </p>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
-              {plans.map((plan) => (
-                <button
-                  key={plan.id}
-                  onClick={() => startSubscription(plan.key)}
-                  disabled={loadingAction.length > 0 || me?.subscriptionPlan === plan.key}
-                  className="rounded-2xl border border-border bg-muted p-4 text-left transition hover:border-primary/40"
-                >
-                  <div className="inline-flex items-center gap-2 text-sm font-semibold">
-                    {plan.key === "gold" ? <Crown className="h-4 w-4 text-primary" /> : <Gem className="h-4 w-4 text-primary" />}
-                    {plan.label}
-                  </div>
-                  <p className="mt-2 text-2xl font-semibold">${(plan.amount / 100).toFixed(2)}/mo</p>
-                </button>
-              ))}
+            <div className="rounded-2xl border border-border bg-muted/30 p-4">
+              <p className="text-sm font-semibold">My package details</p>
+              <div className="mt-3 grid gap-2 text-sm md:grid-cols-2">
+                <div className="rounded-xl border border-border bg-card px-3 py-2">
+                  <p className="text-xs text-foreground/65">Plan type</p>
+                  <p className="font-semibold">{subLabel}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-card px-3 py-2">
+                  <p className="text-xs text-foreground/65">Billing status</p>
+                  <p className="font-semibold">{me?.subscription?.status || "none"}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-card px-3 py-2">
+                  <p className="text-xs text-foreground/65">Auto renew</p>
+                  <p className="font-semibold">{me?.subscription?.cancelAtPeriodEnd ? "Off (will cancel)" : "On"}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-card px-3 py-2">
+                  <p className="text-xs text-foreground/65">Renewal date</p>
+                  <p className="font-semibold">
+                    {me?.subscription?.currentPeriodEnd ? new Date(me.subscription.currentPeriodEnd).toLocaleDateString() : "n/a"}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link href="/upgrade" className="inline-flex h-10 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-white hover:bg-primary/90">
+                  View all packages
+                </Link>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -382,6 +363,14 @@ export default function SettingsPage() {
               <button onClick={() => cancelOrResume(false)} disabled={loadingAction.length > 0 || me?.subscriptionPlan === "free"} className="inline-flex h-10 items-center rounded-2xl bg-primary px-4 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50">
                 {loadingAction === "resume" ? "Saving..." : "Resume subscription"}
               </button>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-muted/30 p-4">
+              <p className="text-sm font-semibold">Payments and invoices</p>
+              <p className="mt-1 text-sm text-foreground/70">Payment history is now available on a separate billing page.</p>
+              <Link href="/app/billing" className="mt-3 inline-flex h-10 items-center rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted">
+                Open billing & history
+              </Link>
             </div>
           </div>
         ) : null}

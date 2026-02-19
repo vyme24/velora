@@ -7,7 +7,7 @@ const coinLedgerSchema = new Schema(
     balanceAfter: { type: Number, required: true },
     reason: {
       type: String,
-      enum: ["purchase", "message_unlock", "super_like", "photo_unlock", "boost", "refund", "adjustment"],
+      enum: ["purchase", "message_unlock", "super_like", "photo_unlock", "boost", "gift_send", "refund", "adjustment"],
       required: true
     },
     paymentId: { type: Schema.Types.ObjectId, ref: "Payment", default: null },

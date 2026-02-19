@@ -10,6 +10,7 @@ type MeProfile = {
   name: string;
   email: string;
   username: string;
+  dob: string;
   age: number;
   gender: string;
   lookingFor: string;
@@ -45,6 +46,7 @@ const emptyProfile: MeProfile = {
   name: "",
   email: "",
   username: "",
+  dob: "",
   age: 18,
   gender: "female",
   lookingFor: "male",
@@ -125,10 +127,11 @@ export default function ProfilePage() {
 
   async function saveProfile() {
     setSaving(true);
+    const dob = form.dob.trim();
     const payload = {
       name: form.name,
       username: form.username,
-      age: Number(form.age),
+      ...(dob ? { dob } : {}),
       gender: form.gender,
       lookingFor: form.lookingFor,
       bio: form.bio,
@@ -290,12 +293,18 @@ export default function ProfilePage() {
         </div>
 
         <div className="mt-3 flex gap-2">
-          <input
-            className="h-10 flex-1 rounded-xl border border-border bg-background px-3 text-sm"
-            placeholder="Or paste image URL"
-            value={photoUrl}
-            onChange={(event) => setPhotoUrl(event.target.value)}
-          />
+          <div className="flex-1">
+            <label htmlFor="photoUrl" className="mb-1 block text-xs font-medium text-foreground/75">
+              Photo URL
+            </label>
+            <input
+              id="photoUrl"
+              className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
+              placeholder="Or paste image URL"
+              value={photoUrl}
+              onChange={(event) => setPhotoUrl(event.target.value)}
+            />
+          </div>
           <button onClick={addPhotoByUrl} className="h-10 rounded-xl border border-border px-3 text-sm font-semibold hover:bg-muted">
             Add URL
           </button>
@@ -330,16 +339,49 @@ export default function ProfilePage() {
         <article className="rounded-3xl border border-border bg-card p-5">
           <p className="text-lg font-semibold">Basic info</p>
           <div className="mt-4 space-y-3">
-            <input className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" placeholder="Name" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
-            <input className="h-11 w-full rounded-xl border border-border bg-muted px-3 text-sm text-foreground/60" value={form.email} readOnly />
-            <input className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" placeholder="Username" value={form.username} onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))} />
-            <div className="grid grid-cols-3 gap-2">
-              <input type="number" min={18} max={99} className="h-11 rounded-xl border border-border bg-background px-3 text-sm" placeholder="Age" value={form.age} onChange={(event) => setForm((prev) => ({ ...prev, age: Number(event.target.value || 18) }))} />
-              <input className="h-11 rounded-xl border border-border bg-background px-3 text-sm" placeholder="Gender" value={form.gender} onChange={(event) => setForm((prev) => ({ ...prev, gender: event.target.value }))} />
-              <input className="h-11 rounded-xl border border-border bg-background px-3 text-sm" placeholder="Looking for" value={form.lookingFor} onChange={(event) => setForm((prev) => ({ ...prev, lookingFor: event.target.value }))} />
+            <div>
+              <label htmlFor="name" className="mb-1 block text-xs font-medium text-foreground/75">Name</label>
+              <input id="name" className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" placeholder="Name" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
             </div>
-            <textarea className="min-h-[120px] w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" placeholder="Bio" value={form.bio} onChange={(event) => setForm((prev) => ({ ...prev, bio: event.target.value }))} />
-            <input className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" placeholder="Interests (comma separated)" value={interestsCsv} onChange={(event) => setInterestsCsv(event.target.value)} />
+            <div>
+              <label htmlFor="email" className="mb-1 block text-xs font-medium text-foreground/75">Email</label>
+              <input id="email" className="h-11 w-full rounded-xl border border-border bg-muted px-3 text-sm text-foreground/60" value={form.email} readOnly />
+            </div>
+            <div>
+              <label htmlFor="username" className="mb-1 block text-xs font-medium text-foreground/75">Username</label>
+              <input id="username" className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" placeholder="Username" value={form.username} onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))} />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label htmlFor="dob" className="mb-1 block text-xs font-medium text-foreground/75">Date of birth</label>
+                <input id="dob" type="date" className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" value={form.dob || ""} onChange={(event) => setForm((prev) => ({ ...prev, dob: event.target.value }))} />
+              </div>
+              <div>
+                <label htmlFor="gender" className="mb-1 block text-xs font-medium text-foreground/75">Gender</label>
+                <select id="gender" className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" value={form.gender} onChange={(event) => setForm((prev) => ({ ...prev, gender: event.target.value }))}>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="lookingFor" className="mb-1 block text-xs font-medium text-foreground/75">Looking for</label>
+                <select id="lookingFor" className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" value={form.lookingFor} onChange={(event) => setForm((prev) => ({ ...prev, lookingFor: event.target.value }))}>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                  <option value="other">Other</option>
+                  <option value="all">All</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label htmlFor="bio" className="mb-1 block text-xs font-medium text-foreground/75">Bio</label>
+              <textarea id="bio" className="min-h-[120px] w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" placeholder="Bio" value={form.bio} onChange={(event) => setForm((prev) => ({ ...prev, bio: event.target.value }))} />
+            </div>
+            <div>
+              <label htmlFor="interests" className="mb-1 block text-xs font-medium text-foreground/75">Interests</label>
+              <input id="interests" className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" placeholder="Interests (comma separated)" value={interestsCsv} onChange={(event) => setInterestsCsv(event.target.value)} />
+            </div>
             {form.isVerified ? (
               <p className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-500"><CheckCircle2 className="h-4 w-4" /> Verified profile</p>
             ) : null}
@@ -350,16 +392,37 @@ export default function ProfilePage() {
           <p className="inline-flex items-center gap-2 text-lg font-semibold"><MapPin className="h-4 w-4 text-primary" /> Location & preferences</p>
           <div className="mt-4 space-y-3">
             <div className="grid grid-cols-3 gap-2">
-              <input className="h-11 rounded-xl border border-border bg-background px-3 text-sm" placeholder="City" value={form.location.city} onChange={(event) => setForm((prev) => ({ ...prev, location: { ...prev.location, city: event.target.value } }))} />
-              <input className="h-11 rounded-xl border border-border bg-background px-3 text-sm" placeholder="State" value={form.location.state} onChange={(event) => setForm((prev) => ({ ...prev, location: { ...prev.location, state: event.target.value } }))} />
-              <input className="h-11 rounded-xl border border-border bg-background px-3 text-sm" placeholder="Country" value={form.location.country} onChange={(event) => setForm((prev) => ({ ...prev, location: { ...prev.location, country: event.target.value } }))} />
+              <div>
+                <label htmlFor="city" className="mb-1 block text-xs font-medium text-foreground/75">City</label>
+                <input id="city" className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" placeholder="City" value={form.location.city} onChange={(event) => setForm((prev) => ({ ...prev, location: { ...prev.location, city: event.target.value } }))} />
+              </div>
+              <div>
+                <label htmlFor="state" className="mb-1 block text-xs font-medium text-foreground/75">State</label>
+                <input id="state" className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" placeholder="State" value={form.location.state} onChange={(event) => setForm((prev) => ({ ...prev, location: { ...prev.location, state: event.target.value } }))} />
+              </div>
+              <div>
+                <label htmlFor="country" className="mb-1 block text-xs font-medium text-foreground/75">Country</label>
+                <input id="country" className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" placeholder="Country" value={form.location.country} onChange={(event) => setForm((prev) => ({ ...prev, location: { ...prev.location, country: event.target.value } }))} />
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <input type="number" min={1} max={500} className="h-11 rounded-xl border border-border bg-background px-3 text-sm" placeholder="Radius km" value={form.location.radiusKm} onChange={(event) => setForm((prev) => ({ ...prev, location: { ...prev.location, radiusKm: Number(event.target.value || 50) } }))} />
-              <input type="number" min={18} max={99} className="h-11 rounded-xl border border-border bg-background px-3 text-sm" placeholder="Min age pref" value={form.preferences.minAge} onChange={(event) => setForm((prev) => ({ ...prev, preferences: { ...prev.preferences, minAge: Number(event.target.value || 18) } }))} />
-              <input type="number" min={18} max={99} className="h-11 rounded-xl border border-border bg-background px-3 text-sm" placeholder="Max age pref" value={form.preferences.maxAge} onChange={(event) => setForm((prev) => ({ ...prev, preferences: { ...prev.preferences, maxAge: Number(event.target.value || 40) } }))} />
+              <div>
+                <label htmlFor="radiusKm" className="mb-1 block text-xs font-medium text-foreground/75">Search radius (km)</label>
+                <input id="radiusKm" type="number" min={1} max={500} className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" placeholder="Radius km" value={form.location.radiusKm} onChange={(event) => setForm((prev) => ({ ...prev, location: { ...prev.location, radiusKm: Number(event.target.value || 50) } }))} />
+              </div>
+              <div>
+                <label htmlFor="minAgePref" className="mb-1 block text-xs font-medium text-foreground/75">Min age preference</label>
+                <input id="minAgePref" type="number" min={18} max={99} className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" placeholder="Min age pref" value={form.preferences.minAge} onChange={(event) => setForm((prev) => ({ ...prev, preferences: { ...prev.preferences, minAge: Number(event.target.value || 18) } }))} />
+              </div>
+              <div>
+                <label htmlFor="maxAgePref" className="mb-1 block text-xs font-medium text-foreground/75">Max age preference</label>
+                <input id="maxAgePref" type="number" min={18} max={99} className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" placeholder="Max age pref" value={form.preferences.maxAge} onChange={(event) => setForm((prev) => ({ ...prev, preferences: { ...prev.preferences, maxAge: Number(event.target.value || 40) } }))} />
+              </div>
             </div>
-            <input className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" placeholder="Preferred genders (comma separated)" value={prefGenderCsv} onChange={(event) => setPrefGenderCsv(event.target.value)} />
+            <div>
+              <label htmlFor="preferredGenders" className="mb-1 block text-xs font-medium text-foreground/75">Preferred genders</label>
+              <input id="preferredGenders" className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" placeholder="Preferred genders (comma separated)" value={prefGenderCsv} onChange={(event) => setPrefGenderCsv(event.target.value)} />
+            </div>
             <div className="grid grid-cols-3 gap-2 text-sm">
               <label className="flex items-center gap-2 rounded-xl border border-border px-3 py-2"><input type="checkbox" checked={form.preferences.verifiedOnly} onChange={(event) => setForm((prev) => ({ ...prev, preferences: { ...prev.preferences, verifiedOnly: event.target.checked } }))} className="h-4 w-4 accent-primary" /> Verified only</label>
               <label className="flex items-center gap-2 rounded-xl border border-border px-3 py-2"><input type="checkbox" checked={form.preferences.onlineOnly} onChange={(event) => setForm((prev) => ({ ...prev, preferences: { ...prev.preferences, onlineOnly: event.target.checked } }))} className="h-4 w-4 accent-primary" /> Online only</label>

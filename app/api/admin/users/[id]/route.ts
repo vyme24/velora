@@ -35,6 +35,31 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (parsed.data.role !== undefined) target.role = parsed.data.role;
   if (parsed.data.accountStatus !== undefined) target.accountStatus = parsed.data.accountStatus;
   if (parsed.data.isVerified !== undefined) target.isVerified = parsed.data.isVerified;
+  if (parsed.data.subscriptionPlan !== undefined) {
+    target.subscriptionPlan = parsed.data.subscriptionPlan;
+    if (parsed.data.subscriptionPlan === "free") {
+      target.subscription = {
+        provider: null,
+        status: "none",
+        stripeCustomerId: null,
+        stripeSubscriptionId: null,
+        currentPeriodStart: null,
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false
+      };
+    }
+  }
+  if (parsed.data.subscriptionStatus !== undefined) {
+    target.subscription = {
+      provider: target.subscription?.provider || null,
+      status: parsed.data.subscriptionStatus,
+      stripeCustomerId: target.subscription?.stripeCustomerId || null,
+      stripeSubscriptionId: target.subscription?.stripeSubscriptionId || null,
+      currentPeriodStart: target.subscription?.currentPeriodStart || null,
+      currentPeriodEnd: target.subscription?.currentPeriodEnd || null,
+      cancelAtPeriodEnd: target.subscription?.cancelAtPeriodEnd || false
+    };
+  }
 
   await target.save();
 
@@ -44,7 +69,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     email: target.email,
     role: target.role,
     accountStatus: target.accountStatus,
-    isVerified: target.isVerified
+    isVerified: target.isVerified,
+    subscriptionPlan: target.subscriptionPlan,
+    subscriptionStatus: target.subscription?.status || "none"
   });
 }
 

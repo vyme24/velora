@@ -15,7 +15,8 @@ import {
   MessageCircle,
   ShieldAlert,
   Sparkles,
-  Heart
+  Heart,
+  X
 } from "lucide-react";
 import { apiFetch, triggerCoinModal, triggerCoinSync } from "@/lib/client-api";
 import { Toast } from "@/components/ui/toast";
@@ -49,6 +50,7 @@ export default function PublicProfilePage() {
   const [actionLoading, setActionLoading] = useState("");
   const [toast, setToast] = useState("");
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   const loadProfile = useCallback(async () => {
     if (!profileId) return;
@@ -299,6 +301,11 @@ export default function PublicProfilePage() {
         <article className="self-start rounded-3xl border border-border bg-card p-3 shadow-sm md:p-4 lg:sticky lg:top-24">
           <div className="relative overflow-hidden rounded-2xl bg-muted">
             <div className="relative h-[68vh] min-h-[560px] max-h-[860px] md:h-[74vh] lg:h-[78vh]">
+              <button
+                onClick={() => setViewerOpen(true)}
+                className="absolute inset-0 z-[1] cursor-zoom-in"
+                aria-label="Open full view"
+              />
               <Image src={currentPhoto} alt={profile.name} fill className="object-cover" />
               <div className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black/25 to-transparent" />
               <div className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black/25 to-transparent" />
@@ -344,7 +351,10 @@ export default function PublicProfilePage() {
               {profile.photos.map((photo, index) => (
                 <button
                   key={`${photo}-${index}`}
-                  onClick={() => setPhotoIndex(index)}
+                  onClick={() => {
+                    setPhotoIndex(index);
+                    setViewerOpen(true);
+                  }}
                   className={`relative h-20 w-16 shrink-0 overflow-hidden rounded-lg border ${
                     index === photoIndex ? "border-primary ring-1 ring-primary/35" : "border-border"
                   }`}
@@ -392,6 +402,48 @@ export default function PublicProfilePage() {
       ) : null}
 
       <Toast open={Boolean(toast)} message={toast} />
+
+      {viewerOpen ? (
+        <div className="fixed inset-0 z-[100] bg-black/90 p-3 md:p-6">
+          <button
+            onClick={() => setViewerOpen(false)}
+            className="absolute right-4 top-4 z-[2] inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
+            aria-label="Close full view"
+          >
+            <X className="h-5 w-5" />
+          </button>
+
+          {profile.photos.length > 1 ? (
+            <>
+              <button
+                onClick={prevPhoto}
+                className="absolute left-3 top-1/2 z-[2] inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
+                aria-label="Previous photo"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+              <button
+                onClick={nextPhoto}
+                className="absolute right-3 top-1/2 z-[2] inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
+                aria-label="Next photo"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+            </>
+          ) : null}
+
+          <div className="relative mx-auto h-full w-full max-w-6xl">
+            <Image
+              src={currentPhoto}
+              alt={`${profile.name} full view`}
+              fill
+              className="object-contain"
+              sizes="100vw"
+              priority
+            />
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

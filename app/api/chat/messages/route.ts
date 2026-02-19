@@ -7,8 +7,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyCsrf } from "@/lib/csrf";
 import { User } from "@/models/User";
 import { CoinLedger } from "@/models/CoinLedger";
-
-const MESSAGE_COST = 50;
+import { getCoinRules } from "@/lib/app-settings";
 
 export async function GET(req: NextRequest) {
   return withApiHandler(req, async () => {
@@ -49,6 +48,7 @@ export async function POST(req: NextRequest) {
 
     const limiter = checkRateLimit(`chat:${String(auth.user._id)}`, 80, 60_000);
     if (!limiter.allowed) return fail("Too many messages", 429);
+    const { messageCost } = await getCoinRules();
 
     const body = await req.json();
 
@@ -62,12 +62,12 @@ export async function POST(req: NextRequest) {
     }
 
     const deduction = await User.updateOne(
-      { _id: auth.user._id, coins: { $gte: MESSAGE_COST } },
-      { $inc: { coins: -MESSAGE_COST } }
+      { _id: auth.user._id, coins: { $gte: messageCost } },
+      { $inc: { coins: -messageCost } }
     );
 
     if (!deduction.modifiedCount) {
-      return fail(`Insufficient coins. ${MESSAGE_COST} coins required per message`, 402);
+      return fail(`Insufficient coins. ${messageCost} coins required per message`, 402);
     }
 
     let message;
@@ -80,11 +80,11 @@ export async function POST(req: NextRequest) {
         metadata: {
           type: body.image ? "image" : "text",
           requiresCoins: true,
-          consumedCoins: MESSAGE_COST
+          consumedCoins: messageCost
         }
       });
     } catch (error) {
-      await User.updateOne({ _id: auth.user._id }, { $inc: { coins: MESSAGE_COST } });
+      await User.updateOne({ _id: auth.user._id }, { $inc: { coins: messageCost } });
       throw error;
     }
 
@@ -92,16 +92,39 @@ export async function POST(req: NextRequest) {
 
     await CoinLedger.create({
       userId: auth.user._id,
-      delta: -MESSAGE_COST,
+      delta: -messageCost,
       balanceAfter: updated?.coins ?? 0,
       reason: "message_unlock",
       metadata: {
         receiverId: body.receiver,
         messageId: String(message._id),
-        cost: MESSAGE_COST
+        cost: messageCost
       }
     });
 
     return ok({ ...message.toObject(), senderCoins: updated?.coins ?? 0 }, { status: 201 });
+  });
+}
+
+export async function PATCH(req: NextRequest) {
+  return withApiHandler(req, async () => {
+    if (!verifyCsrf(req)) return fail("Invalid CSRF token", 403);
+
+    const auth = await requireAuthUser(req);
+    if ("response" in auth) return auth.response;
+
+    const body = (await req.json().catch(() => ({}))) as { userId?: string };
+    const query: Record<string, unknown> = {
+      receiver: auth.user._id,
+      seen: false
+    };
+
+    if (body.userId) query.sender = body.userId;
+
+    const result = await Message.updateMany(query, {
+      $set: { seen: true, seenAt: new Date() }
+    });
+
+    return ok({ marked: result.modifiedCount || 0 });
   });
 }

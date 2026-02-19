@@ -7,8 +7,7 @@ import { User } from "@/models/User";
 import { Like } from "@/models/Like";
 import { ProfileUnlock } from "@/models/ProfileUnlock";
 import { withApiHandler } from "@/lib/api";
-
-const PHOTO_UNLOCK_COST = 70;
+import { getCoinRules } from "@/lib/app-settings";
 
 type Params = { params: { id: string } };
 
@@ -16,6 +15,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   return withApiHandler(req, async () => {
     const auth = await requireAuthUser(req);
     if ("response" in auth) return auth.response;
+    const { profileUnlockCost } = await getCoinRules();
 
     const profileId = params.id;
     if (!Types.ObjectId.isValid(profileId)) {
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest, { params }: Params) {
         isVerified: Boolean(user.isVerified),
         createdAt: user.createdAt,
         privatePhotosLocked,
-        unlockCost: privatePhotosLocked ? PHOTO_UNLOCK_COST : 0,
+        unlockCost: privatePhotosLocked ? profileUnlockCost : 0,
         likedByViewer: Boolean(liked),
         isSelf
       }

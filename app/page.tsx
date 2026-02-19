@@ -1,7 +1,6 @@
 import Image from "next/image";
 import { ShieldCheck, MessageCircleHeart, CreditCard, CheckCircle2, Coins, Users } from "lucide-react";
 import { FloatingCards } from "@/components/premium/floating-cards";
-import { PricingCard } from "@/components/ui/pricing-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Reveal } from "@/components/ui/reveal";
@@ -100,15 +99,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-16" id="pricing">
-        <Reveal><h2 className="text-3xl font-semibold">Plans</h2></Reveal>
-        <div className="mt-7 grid gap-5 md:grid-cols-3">
-          <PricingCard title="Free" price="$0" features={["Basic swipes", "Coin-based messaging", "Standard support"]} />
-          <PricingCard title="Gold" price="$14.99/mo" features={["Unlimited messaging", "See who liked you", "No ads"]} highlighted badge="Most Popular" />
-          <PricingCard title="Platinum" price="$29.99/mo" features={["Weekly boost", "Priority visibility", "Priority support"]} />
-        </div>
-      </section>
-
       <section className="mx-auto max-w-6xl px-6 py-8">
         <Reveal><h2 className="text-3xl font-semibold">Safety & Trust</h2></Reveal>
         <div className="mt-7 grid gap-4 md:grid-cols-3">
@@ -142,15 +132,54 @@ export default function HomePage() {
 
      
 
-      <section className="border-t border-border bg-velora-gradient text-white">
-        <div className="mx-auto max-w-6xl px-6 py-12">
-          <h2 className="text-3xl font-semibold">Ready to launch and scale Velora?</h2>
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-            <input className="h-11 flex-1 rounded-2xl border border-white/40 bg-white/15 px-4 text-sm placeholder:text-white/75" placeholder="Enter email for launch updates" />
-            <GradientButton className="bg-white text-primary shadow-none">Get Launch Access</GradientButton>
+      <section className="border-t border-border bg-gradient-to-br from-primary via-primary/90 to-[#6e5cff] text-white">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <div className="rounded-3xl border border-white/30 bg-white/10 p-6 backdrop-blur md:p-8">
+            <div className="grid gap-6 md:grid-cols-[1.3fr_1fr] md:items-center">
+              <div>
+                <h2 className="text-3xl font-semibold md:text-4xl">Ready to launch and scale Velora?</h2>
+                <p className="mt-2 text-sm text-white/85">Get product updates, growth insights, and release alerts.</p>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row md:flex-col">
+                <input className="h-11 flex-1 rounded-2xl border border-white/40 bg-white/15 px-4 text-sm placeholder:text-white/75" placeholder="Enter email for launch updates" />
+                <GradientButton className="bg-white text-primary shadow-none">Get Launch Access</GradientButton>
+              </div>
+            </div>
           </div>
-          <div className="mt-6 flex flex-wrap items-center gap-5 text-sm text-white/85">
-            <span>Privacy</span><span>Terms</span><span>Support</span><span className="inline-flex items-center gap-1"><CheckCircle2 className="h-4 w-4" /> Trusted Platform</span>
+
+          <div className="mt-8 grid gap-8 md:grid-cols-4">
+            <div>
+              <p className="text-base font-semibold">Velora</p>
+              <p className="mt-2 text-sm text-white/80">Premium dating platform built for real users and strong conversion flows.</p>
+            </div>
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-white/90">Platform</p>
+              <div className="mt-2 space-y-1 text-sm text-white/80">
+                <p>Discover</p>
+                <p>Explore</p>
+                <p>Messages</p>
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-white/90">Company</p>
+              <div className="mt-2 space-y-1 text-sm text-white/80">
+                <p>About</p>
+                <p>Safety</p>
+                <p>Contact</p>
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-white/90">Legal</p>
+              <div className="mt-2 space-y-1 text-sm text-white/80">
+                <p>Privacy</p>
+                <p>Terms</p>
+                <p className="inline-flex items-center gap-1"><CheckCircle2 className="h-4 w-4" /> Trusted Platform</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 border-t border-white/25 pt-4 text-xs text-white/70">
+            © {new Date().getFullYear()} Velora. All rights reserved.
           </div>
         </div>
       </section>

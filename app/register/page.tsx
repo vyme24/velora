@@ -22,15 +22,21 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [gender, setGender] = useState("other");
-  const [lookingFor, setLookingFor] = useState("all");
-  const [age, setAge] = useState(18);
+  const [gender, setGender] = useState("male");
+  const [lookingFor, setLookingFor] = useState("female");
+  const [dob, setDob] = useState("");
 
   const [userId, setUserId] = useState("");
   const [otp, setOtp] = useState("");
   const [devOtp, setDevOtp] = useState("");
 
   async function onRegister() {
+    if (!name || !email || !password || !dob) {
+      setMessage("Name, email, password, and date of birth are required.");
+      setTimeout(() => setMessage(""), 2000);
+      return;
+    }
+
     setLoading(true);
     const res = await apiFetch("/api/auth/register", {
       method: "POST",
@@ -39,7 +45,7 @@ export default function RegisterPage() {
         name,
         email,
         password,
-        age,
+        dob,
         gender,
         lookingFor,
         acceptedAgePolicy: true
@@ -124,9 +130,35 @@ export default function RegisterPage() {
             ) : null}
             {step === 1 ? (
               <>
-                <Input placeholder="Gender" value={gender} onChange={(event) => setGender(event.target.value)} />
-                <Input placeholder="Looking for" value={lookingFor} onChange={(event) => setLookingFor(event.target.value)} />
-                <Input placeholder="Age" type="number" value={age} onChange={(event) => setAge(Number(event.target.value || 18))} />
+                <label className="space-y-1">
+                  <span className="block text-xs font-semibold text-foreground/70">Gender</span>
+                  <select
+                    value={gender}
+                    onChange={(event) => setGender(event.target.value)}
+                    className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm"
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+                <label className="space-y-1">
+                  <span className="block text-xs font-semibold text-foreground/70">Looking for</span>
+                  <select
+                    value={lookingFor}
+                    onChange={(event) => setLookingFor(event.target.value)}
+                    className="h-10 w-full rounded-2xl border border-border bg-background px-3 text-sm"
+                  >
+                    <option value="female">Female</option>
+                    <option value="male">Male</option>
+                    <option value="other">Other</option>
+                    <option value="all">All</option>
+                  </select>
+                </label>
+                <label className="space-y-1">
+                  <span className="block text-xs font-semibold text-foreground/70">Date of birth</span>
+                  <Input type="date" value={dob} onChange={(event) => setDob(event.target.value)} />
+                </label>
               </>
             ) : null}
             {step === 2 ? (

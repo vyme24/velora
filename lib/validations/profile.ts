@@ -9,7 +9,7 @@ export const updateMeSchema = z
       .max(24)
       .regex(/^[a-zA-Z0-9_]+$/)
       .optional(),
-    age: z.number().int().min(18).max(99).optional(),
+    dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     gender: z.string().min(1).max(32).optional(),
     lookingFor: z.string().min(1).max(32).optional(),
     bio: z.string().max(800).optional(),

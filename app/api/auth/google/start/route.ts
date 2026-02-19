@@ -1,6 +1,5 @@
 import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { fail } from "@/lib/http";
 
 const GOOGLE_OAUTH_STATE_COOKIE = "velora_google_oauth_state";
 
@@ -13,7 +12,9 @@ function getGoogleConfig(origin: string) {
 
 export async function GET(req: NextRequest) {
   const config = getGoogleConfig(req.nextUrl.origin);
-  if (!config) return fail("Google auth not configured", 500);
+  if (!config) {
+    return NextResponse.redirect(new URL("/?auth=1&auth_error=google_not_configured", req.url));
+  }
 
   const state = randomBytes(24).toString("hex");
   const params = new URLSearchParams({
@@ -22,7 +23,8 @@ export async function GET(req: NextRequest) {
     response_type: "code",
     scope: "openid email profile",
     state,
-    prompt: "select_account"
+    prompt: "select_account",
+    include_granted_scopes: "true"
   });
 
   const response = NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
@@ -35,4 +37,3 @@ export async function GET(req: NextRequest) {
   });
   return response;
 }
-

@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   if ("response" in auth) return auth.response;
 
   const users = await User.find({})
-    .select("_id name email role accountStatus isVerified createdAt deletedAt")
+    .select("_id name email role accountStatus isVerified subscriptionPlan subscription createdAt deletedAt")
     .sort({ createdAt: -1 })
     .limit(500);
 

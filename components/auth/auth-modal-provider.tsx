@@ -20,9 +20,9 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [age, setAge] = useState(24);
-  const [gender, setGender] = useState("female");
-  const [lookingFor, setLookingFor] = useState("male");
+  const [dob, setDob] = useState("");
+  const [gender, setGender] = useState("male");
+  const [lookingFor, setLookingFor] = useState("female");
   const [userId, setUserId] = useState("");
   const [otp, setOtp] = useState("");
   const [devOtp, setDevOtp] = useState("");
@@ -47,7 +47,17 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("auth") !== "1") return;
-    setReason("Please log in or create an account to continue.");
+    const error = params.get("auth_error");
+    const errorMessage = (() => {
+      if (!error) return "Please log in or create an account to continue.";
+      if (error === "google_not_configured") return "Google login is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.";
+      if (error === "google_state_mismatch") return "Google login session expired. Please try again.";
+      if (error === "google_token_exchange_failed") return "Google login failed during token exchange. Please try again.";
+      if (error === "google_email_missing" || error === "google_email_not_verified") return "Your Google account email is missing or not verified.";
+      if (error === "account_not_active") return "Your account is not active.";
+      return "Google login failed. Please try again.";
+    })();
+    setReason(errorMessage);
     setMode("login");
     setOpen(true);
     if (pathname === "/") {
@@ -81,8 +91,8 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function onRegister() {
-    if (!name || !email || !password) {
-      setMessage("Name, email, and password are required.");
+    if (!name || !email || !password || !dob) {
+      setMessage("Name, email, password, and date of birth are required.");
       return;
     }
 
@@ -94,7 +104,7 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
         name,
         email,
         password,
-        age,
+        dob,
         gender,
         lookingFor,
         acceptedAgePolicy: true
@@ -253,22 +263,23 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
                   <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm outline-none transition focus:border-primary/45" />
                   <div className="grid grid-cols-3 gap-2">
                     <label className="space-y-1">
-                      <span className="block text-xs font-semibold text-foreground/70">Age</span>
-                      <input type="number" min={18} value={age} onChange={(event) => setAge(Number(event.target.value || 18))} placeholder="Age" className="h-12 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none transition focus:border-primary/45" />
+                      <span className="block text-xs font-semibold text-foreground/70">Date of birth</span>
+                      <input type="date" value={dob} onChange={(event) => setDob(event.target.value)} className="h-12 w-full rounded-2xl border border-border bg-background px-3 text-sm outline-none transition focus:border-primary/45" />
                     </label>
                     <label className="space-y-1">
                       <span className="block text-xs font-semibold text-foreground/70">Gender</span>
                       <select value={gender} onChange={(event) => setGender(event.target.value)} className="h-12 w-full rounded-2xl border border-border bg-background px-2 text-sm outline-none transition focus:border-primary/45">
-                        <option value="female">Female</option>
                         <option value="male">Male</option>
+                        <option value="female">Female</option>
                         <option value="other">Other</option>
                       </select>
                     </label>
                     <label className="space-y-1">
                       <span className="block text-xs font-semibold text-foreground/70">Looking for</span>
                       <select value={lookingFor} onChange={(event) => setLookingFor(event.target.value)} className="h-12 w-full rounded-2xl border border-border bg-background px-2 text-sm outline-none transition focus:border-primary/45">
-                        <option value="female">Female</option>
                         <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
                         <option value="all">All</option>
                       </select>
                     </label>

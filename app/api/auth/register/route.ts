@@ -8,6 +8,7 @@ import { User } from "@/models/User";
 import { OtpCode } from "@/models/OtpCode";
 import { otpEmailTemplate, sendEmail, welcomeEmailTemplate } from "@/lib/email";
 import { setAuthCookies } from "@/lib/session";
+import { calculateAgeFromDob, isAdultDob } from "@/lib/dob";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -26,9 +27,23 @@ export async function POST(req: NextRequest) {
 
   const { acceptedAgePolicy, ...input } = parsed.data;
   void acceptedAgePolicy;
+  if (!isAdultDob(input.dob)) {
+    return fail("You must be at least 18 years old", 422);
+  }
+  const age = calculateAgeFromDob(input.dob);
+  if (!Number.isFinite(age)) {
+    return fail("Invalid date of birth", 422);
+  }
+
   const password = await hashPassword(input.password);
   const user = await User.create({
-    ...input,
+    name: input.name,
+    username: input.username,
+    email: input.email,
+    gender: input.gender,
+    lookingFor: input.lookingFor,
+    dob: new Date(input.dob),
+    age,
     password,
     isVerified: process.env.NODE_ENV !== "production"
   });

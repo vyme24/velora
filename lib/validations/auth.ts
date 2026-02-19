@@ -10,7 +10,7 @@ export const registerSchema = z.object({
     .optional(),
   email: z.string().email(),
   password: z.string().min(8),
-  age: z.number().min(18),
+  dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "DOB must be in YYYY-MM-DD format"),
   gender: z.string().min(1),
   lookingFor: z.string().min(1),
   acceptedAgePolicy: z.literal(true)

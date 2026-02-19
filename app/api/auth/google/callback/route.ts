@@ -29,6 +29,10 @@ function sanitizeUsername(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20);
 }
 
+function authErrorRedirect(req: NextRequest, reason: string) {
+  return NextResponse.redirect(new URL(`/?auth=1&auth_error=${encodeURIComponent(reason)}`, req.url));
+}
+
 async function exchangeCodeForToken(code: string, cfg: NonNullable<ReturnType<typeof getGoogleConfig>>) {
   const body = new URLSearchParams({
     code,
@@ -58,26 +62,24 @@ async function fetchGoogleProfile(accessToken: string) {
 
 export async function GET(req: NextRequest) {
   const config = getGoogleConfig(req.nextUrl.origin);
-  if (!config) return NextResponse.redirect(new URL("/?auth=1", req.url));
+  if (!config) return authErrorRedirect(req, "google_not_configured");
+
+  const oauthError = req.nextUrl.searchParams.get("error");
+  if (oauthError) return authErrorRedirect(req, oauthError);
 
   const code = req.nextUrl.searchParams.get("code");
   const state = req.nextUrl.searchParams.get("state");
   const stateCookie = req.cookies.get(GOOGLE_OAUTH_STATE_COOKIE)?.value;
 
-  if (!code || !state || !stateCookie || state !== stateCookie) {
-    return NextResponse.redirect(new URL("/?auth=1", req.url));
-  }
+  if (!code || !state || !stateCookie || state !== stateCookie) return authErrorRedirect(req, "google_state_mismatch");
 
   const token = await exchangeCodeForToken(code, config);
-  if (!token?.access_token) {
-    return NextResponse.redirect(new URL("/?auth=1", req.url));
-  }
+  if (!token?.access_token) return authErrorRedirect(req, "google_token_exchange_failed");
 
   const profile = await fetchGoogleProfile(token.access_token);
   const email = profile?.email?.toLowerCase().trim();
-  if (!email) {
-    return NextResponse.redirect(new URL("/?auth=1", req.url));
-  }
+  if (!email) return authErrorRedirect(req, "google_email_missing");
+  if (!profile?.email_verified) return authErrorRedirect(req, "google_email_not_verified");
 
   await connectToDatabase();
   let user = await User.findOne({ email });
@@ -85,13 +87,19 @@ export async function GET(req: NextRequest) {
   if (!user) {
     const rawName = profile?.name?.trim() || email.split("@")[0];
     const usernameBase = sanitizeUsername(rawName || email);
-    const username = `${usernameBase || "user"}${Math.floor(Math.random() * 9000 + 1000)}`;
+    let username = `${usernameBase || "user"}${Math.floor(Math.random() * 9000 + 1000)}`;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const exists = await User.exists({ username });
+      if (!exists) break;
+      username = `${usernameBase || "user"}${Math.floor(Math.random() * 9000 + 1000)}`;
+    }
     const randomPassword = await hashPassword(generateSecureToken(20));
 
     user = await User.create({
       name: rawName,
       email,
       password: randomPassword,
+      dob: new Date("2003-01-01"),
       age: 21,
       gender: "other",
       lookingFor: "all",
@@ -117,7 +125,7 @@ export async function GET(req: NextRequest) {
     });
   } else {
     if (user.accountStatus !== "active") {
-      return NextResponse.redirect(new URL("/?auth=1", req.url));
+      return authErrorRedirect(req, "account_not_active");
     }
 
     const updates: Record<string, unknown> = {
@@ -147,4 +155,3 @@ export async function GET(req: NextRequest) {
   });
   return response;
 }
-

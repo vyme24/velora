@@ -7,8 +7,7 @@ import { User } from "@/models/User";
 import { ProfileUnlock } from "@/models/ProfileUnlock";
 import { CoinLedger } from "@/models/CoinLedger";
 import { withApiHandler } from "@/lib/api";
-
-const PHOTO_UNLOCK_COST = 70;
+import { getCoinRules } from "@/lib/app-settings";
 
 export async function POST(req: NextRequest) {
   return withApiHandler(req, async () => {
@@ -16,6 +15,7 @@ export async function POST(req: NextRequest) {
 
     const auth = await requireAuthUser(req);
     if ("response" in auth) return auth.response;
+    const { profileUnlockCost } = await getCoinRules();
 
     const limit = checkRateLimit(`photo-unlock:${String(auth.user._id)}`, 30, 60_000);
     if (!limit.allowed) return fail("Too many requests", 429);
@@ -38,37 +38,37 @@ export async function POST(req: NextRequest) {
     }
 
     const deduction = await User.updateOne(
-      { _id: auth.user._id, coins: { $gte: PHOTO_UNLOCK_COST } },
-      { $inc: { coins: -PHOTO_UNLOCK_COST } }
+      { _id: auth.user._id, coins: { $gte: profileUnlockCost } },
+      { $inc: { coins: -profileUnlockCost } }
     );
 
     if (!deduction.modifiedCount) {
-      return fail(`Insufficient coins. ${PHOTO_UNLOCK_COST} coins required`, 402);
+      return fail(`Insufficient coins. ${profileUnlockCost} coins required`, 402);
     }
 
     try {
       await ProfileUnlock.create({
         viewerId: auth.user._id,
         profileUserId: body.profileUserId,
-        cost: PHOTO_UNLOCK_COST
+        cost: profileUnlockCost
       });
 
       const updated = await User.findById(auth.user._id).select("coins");
 
       await CoinLedger.create({
         userId: auth.user._id,
-        delta: -PHOTO_UNLOCK_COST,
+        delta: -profileUnlockCost,
         balanceAfter: updated?.coins ?? 0,
         reason: "photo_unlock",
         metadata: {
           profileUserId: body.profileUserId,
-          cost: PHOTO_UNLOCK_COST
+          cost: profileUnlockCost
         }
       });
 
-      return ok({ unlocked: true, cost: PHOTO_UNLOCK_COST, coins: updated?.coins ?? 0 });
+      return ok({ unlocked: true, cost: profileUnlockCost, coins: updated?.coins ?? 0 });
     } catch (error) {
-      await User.updateOne({ _id: auth.user._id }, { $inc: { coins: PHOTO_UNLOCK_COST } });
+      await User.updateOne({ _id: auth.user._id }, { $inc: { coins: profileUnlockCost } });
       throw error;
     }
   });

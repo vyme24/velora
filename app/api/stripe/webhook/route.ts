@@ -1,5 +1,4 @@
 import Stripe from "stripe";
-import { headers } from "next/headers";
 import { NextRequest } from "next/server";
 import { getStripeClient } from "@/lib/stripe";
 import { fail, ok } from "@/lib/http";
@@ -10,6 +9,9 @@ import { CoinLedger } from "@/models/CoinLedger";
 import { StripeEvent } from "@/models/StripeEvent";
 import { Transaction } from "@/models/Transaction";
 import { paymentConfirmationTemplate, sendEmail } from "@/lib/email";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type StripeMetadata = {
   userId?: string;
@@ -430,7 +432,7 @@ async function handleSubscriptionDeleted(event: Stripe.Event) {
 export async function POST(req: NextRequest) {
   const stripe = getStripeClient();
   const body = await req.text();
-  const signature = headers().get("stripe-signature");
+  const signature = req.headers.get("stripe-signature");
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!signature || !webhookSecret) {

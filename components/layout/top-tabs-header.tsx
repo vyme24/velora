@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Compass, MessageCircle, Heart, Coins, Plus, User, Settings, Shield, LogOut, LayoutGrid } from "lucide-react";
+import { Compass, MessageCircle, Heart, Coins, Plus, User, Settings, Shield, LogOut, LayoutGrid, ReceiptText } from "lucide-react";
 import { useCoinModal } from "@/components/coins/coin-modal-provider";
 import { VeloraLogo } from "@/components/brand/velora-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -26,6 +26,8 @@ export function TopTabsHeader() {
   const [name, setName] = useState("User");
   const [role, setRole] = useState<"user" | "admin" | "super_admin">("user");
   const [avatar, setAvatar] = useState("");
+  const [newLikes, setNewLikes] = useState(0);
+  const [newMessages, setNewMessages] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,6 +41,45 @@ export function TopTabsHeader() {
       }
     }
     loadMe();
+  }, []);
+
+  useEffect(() => {
+    const likesSeenKey = "velora:likes_seen_at";
+
+    async function refreshBadges() {
+      const [likesRes, unreadRes] = await Promise.all([
+        apiFetch("/api/likes", { retryOn401: true }),
+        apiFetch("/api/chat/unread", { retryOn401: true })
+      ]);
+
+      const likesJson = await likesRes.json();
+      const unreadJson = await unreadRes.json();
+
+      if (likesRes.ok) {
+        const seenRaw = window.localStorage.getItem(likesSeenKey);
+        const seenAt = seenRaw ? new Date(seenRaw) : new Date(0);
+        const received = likesJson.data?.received || [];
+        const unseenLikes = received.filter((item: { createdAt?: string }) => {
+          if (!item.createdAt) return false;
+          return new Date(item.createdAt).getTime() > seenAt.getTime();
+        });
+        setNewLikes(unseenLikes.length);
+      }
+
+      if (unreadRes.ok) {
+        setNewMessages(Number(unreadJson.data?.count || 0));
+      }
+    }
+
+    refreshBadges();
+    const interval = window.setInterval(refreshBadges, 12000);
+    const sync = () => refreshBadges();
+    window.addEventListener("velora:badge-sync", sync);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("velora:badge-sync", sync);
+    };
   }, []);
 
   useEffect(() => {
@@ -86,7 +127,19 @@ export function TopTabsHeader() {
                       : "text-foreground/75 hover:bg-muted"
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
+                  <span className="relative inline-flex">
+                    <Icon className="h-4 w-4" />
+                    {tab.href === "/app/messages" && newMessages > 0 ? (
+                      <span className="absolute -right-2 -top-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                        {newMessages > 99 ? "99+" : newMessages}
+                      </span>
+                    ) : null}
+                    {tab.href === "/app/likes" && newLikes > 0 ? (
+                      <span className="absolute -right-2 -top-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                        {newLikes > 99 ? "99+" : newLikes}
+                      </span>
+                    ) : null}
+                  </span>
                   {tab.label}
                 </Link>
               );
@@ -108,11 +161,11 @@ export function TopTabsHeader() {
             </button>
             <button
               onClick={() => openCoinModal()}
-              className="inline-flex h-8 items-center justify-center gap-1 rounded-lg bg-primary px-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-primary/90"
+              className="inline-flex h-8 items-center justify-center gap-1 rounded-full bg-primary px-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-primary/90"
               aria-label="Add coins"
             >
               <Plus className="h-3.5 w-3.5" />
-              Add coins
+              Coins
             </button>
           </div>
 
@@ -171,6 +224,14 @@ export function TopTabsHeader() {
                     <Settings className="h-4 w-4 text-primary" />
                     Settings
                   </Link>
+                  <Link
+                    href="/app/billing"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition hover:bg-muted"
+                  >
+                    <ReceiptText className="h-4 w-4 text-primary" />
+                    Billing & history
+                  </Link>
                   {role !== "user" ? (
                     <Link
                       href="/admin"
@@ -207,7 +268,19 @@ export function TopTabsHeader() {
                 active ? "bg-primary text-primary-foreground" : "text-foreground/70"
               }`}
             >
-              <Icon className="h-3.5 w-3.5" />
+              <span className="relative inline-flex">
+                <Icon className="h-3.5 w-3.5" />
+                {tab.href === "/app/messages" && newMessages > 0 ? (
+                  <span className="absolute -right-2 -top-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                    {newMessages > 99 ? "99+" : newMessages}
+                  </span>
+                ) : null}
+                {tab.href === "/app/likes" && newLikes > 0 ? (
+                  <span className="absolute -right-2 -top-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                    {newLikes > 99 ? "99+" : newLikes}
+                  </span>
+                ) : null}
+              </span>
               {tab.label}
             </Link>
           );

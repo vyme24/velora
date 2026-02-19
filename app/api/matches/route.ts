@@ -13,8 +13,8 @@ export async function GET(req: NextRequest) {
       $or: [{ user1: auth.user._id }, { user2: auth.user._id }],
       isActive: true
     })
-      .populate("user1", "name photos isOnline")
-      .populate("user2", "name photos isOnline")
+      .populate("user1", "name age photos interests location isOnline")
+      .populate("user2", "name age photos interests location isOnline")
       .sort({ matchedAt: -1 })
       .limit(200);
 

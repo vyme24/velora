@@ -15,7 +15,21 @@ export const adminUpdateUserSchema = z
     name: z.string().min(2).optional(),
     role: z.enum(["user", "admin", "super_admin"]).optional(),
     accountStatus: z.enum(["active", "deactivated", "disabled"]).optional(),
-    isVerified: z.boolean().optional()
+    isVerified: z.boolean().optional(),
+    subscriptionPlan: z.enum(["free", "gold", "platinum"]).optional(),
+    subscriptionStatus: z
+      .enum([
+        "none",
+        "active",
+        "past_due",
+        "canceled",
+        "incomplete",
+        "incomplete_expired",
+        "trialing",
+        "unpaid",
+        "paused"
+      ])
+      .optional()
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field is required"

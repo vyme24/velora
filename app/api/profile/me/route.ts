@@ -4,19 +4,22 @@ import { requireAuthUser } from "@/lib/require-auth";
 import { verifyCsrf } from "@/lib/csrf";
 import { updateMeSchema } from "@/lib/validations/profile";
 import { User } from "@/models/User";
+import { calculateAgeFromDob, isAdultDob, toDateOnlyString } from "@/lib/dob";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuthUser(req);
   if ("response" in auth) return auth.response;
 
   const user = auth.user;
+  const computedAge = user.dob ? calculateAgeFromDob(user.dob) : user.age;
 
   return ok({
     userId: String(user._id),
     name: user.name,
     email: user.email,
     username: user.username || "",
-    age: user.age,
+    dob: toDateOnlyString(user.dob || null),
+    age: Number.isFinite(computedAge) ? computedAge : user.age,
     gender: user.gender,
     lookingFor: user.lookingFor,
     bio: user.bio || "",
@@ -69,7 +72,13 @@ export async function PATCH(req: NextRequest) {
 
   if (data.name !== undefined) user.name = data.name.trim();
   if (data.username !== undefined) user.username = data.username.trim().toLowerCase();
-  if (data.age !== undefined) user.age = data.age;
+  if (data.dob !== undefined) {
+    if (!isAdultDob(data.dob)) return fail("You must be at least 18 years old", 422);
+    const computedAge = calculateAgeFromDob(data.dob);
+    if (!Number.isFinite(computedAge)) return fail("Invalid date of birth", 422);
+    user.dob = new Date(data.dob);
+    user.age = computedAge;
+  }
   if (data.gender !== undefined) user.gender = data.gender.trim();
   if (data.lookingFor !== undefined) user.lookingFor = data.lookingFor.trim();
   if (data.bio !== undefined) user.bio = data.bio.trim();

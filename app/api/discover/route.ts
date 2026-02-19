@@ -5,6 +5,7 @@ import { Like } from "@/models/Like";
 import { User } from "@/models/User";
 import { ProfileUnlock } from "@/models/ProfileUnlock";
 import { withApiHandler } from "@/lib/api";
+import { getCoinRules } from "@/lib/app-settings";
 
 function normalizeIdentity(value?: string | null) {
   const raw = String(value || "")
@@ -49,6 +50,7 @@ export async function GET(req: NextRequest) {
   return withApiHandler(req, async () => {
     const auth = await requireAuthUser(req);
     if ("response" in auth) return auth.response;
+    const { profileUnlockCost } = await getCoinRules();
 
     const likedIds = await Like.find({ sender: auth.user._id }).distinct("receiver");
     const viewerGender = normalizeIdentity(auth.user.gender);
@@ -108,7 +110,7 @@ export async function GET(req: NextRequest) {
         ...user.toObject(),
         photos: unlocked ? user.photos : user.photos.slice(0, 1),
         privatePhotosLocked: !unlocked && user.photos.length > 1,
-        unlockCost: !unlocked && user.photos.length > 1 ? 70 : 0
+        unlockCost: !unlocked && user.photos.length > 1 ? profileUnlockCost : 0
       };
     });
 

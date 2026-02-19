@@ -36,9 +36,13 @@ function pickDbNameFromUri(uri) {
 
 async function upsertUser(users, raw, passwordHash) {
   const username = (raw.username || raw.email.split("@")[0]).toLowerCase();
+  const dob = raw.dob
+    ? new Date(raw.dob)
+    : new Date(new Date().getFullYear() - Number(raw.age || 21), 0, 1);
   const update = {
     $set: {
       name: raw.name,
+      dob,
       age: raw.age,
       gender: raw.gender,
       lookingFor: raw.lookingFor,
@@ -97,6 +101,7 @@ async function run() {
   const matches = db.collection("matches");
   const messages = db.collection("messages");
   const pricingPlans = db.collection("pricingplans");
+  const gifts = db.collection("gifts");
 
   const seedPassword = process.env.SEED_DEFAULT_PASSWORD || "Velora@123";
   const passwordHash = await bcrypt.hash(seedPassword, 12);
@@ -326,6 +331,20 @@ async function run() {
     { key: "sub_gold", kind: "subscription", label: "Gold", badge: "Popular", amount: 1499, currency: "usd", subscriptionKey: "gold", stripePriceId: process.env.STRIPE_PRICE_GOLD || null, active: true, sortOrder: 10 },
     { key: "sub_platinum", kind: "subscription", label: "Platinum", badge: "Best Value", amount: 2999, currency: "usd", subscriptionKey: "platinum", stripePriceId: process.env.STRIPE_PRICE_PLATINUM || null, active: true, sortOrder: 20 }
   ];
+  const seedGifts = [
+    { key: "sparkling_diamond", name: "Sparkling Diamond", category: "luxury", coins: 500, image: "https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?auto=format&fit=crop&w=800&q=80", featured: true, active: true, sortOrder: 10 },
+    { key: "diamond_ring", name: "Diamond Ring", category: "romantic", coins: 420, image: "https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=800&q=80", featured: true, active: true, sortOrder: 20 },
+    { key: "box_of_chocolates", name: "Box of Chocolates", category: "romantic", coins: 100, image: "https://images.unsplash.com/photo-1549007994-cb92caebd54b?auto=format&fit=crop&w=800&q=80", featured: true, active: true, sortOrder: 30 },
+    { key: "flirty_perfume", name: "Flirty Perfume", category: "sexy", coins: 100, image: "https://images.unsplash.com/photo-1595425964070-52e4d7f5bf5b?auto=format&fit=crop&w=800&q=80", featured: false, active: true, sortOrder: 40 },
+    { key: "chic_bag", name: "Chic Bag", category: "luxury", coins: 200, image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=800&q=80", featured: false, active: true, sortOrder: 50 },
+    { key: "designer_bag", name: "Designer Bag", category: "luxury", coins: 400, image: "https://images.unsplash.com/photo-1591561954557-26941169b49e?auto=format&fit=crop&w=800&q=80", featured: false, active: true, sortOrder: 60 },
+    { key: "pearl_earrings", name: "Pearl Earrings", category: "night out", coins: 210, image: "https://images.unsplash.com/photo-1635767798638-3e25273a8236?auto=format&fit=crop&w=800&q=80", featured: false, active: true, sortOrder: 70 },
+    { key: "diamond_necklace", name: "Diamond Necklace", category: "luxury", coins: 350, image: "https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=800&q=80", featured: false, active: true, sortOrder: 80 },
+    { key: "elegant_necklace", name: "Elegant Necklace", category: "night out", coins: 300, image: "https://images.unsplash.com/photo-1611652022419-a9419f74343d?auto=format&fit=crop&w=800&q=80", featured: false, active: true, sortOrder: 90 },
+    { key: "red_diamond_ring", name: "Red Diamond Ring", category: "romantic", coins: 330, image: "https://images.unsplash.com/photo-1588444837495-c6cfeb53f32d?auto=format&fit=crop&w=800&q=80", featured: false, active: true, sortOrder: 100 },
+    { key: "smart_watch", name: "Smart Watch", category: "night out", coins: 260, image: "https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=800&q=80", featured: false, active: true, sortOrder: 110 },
+    { key: "vip_roses", name: "VIP Roses", category: "romantic", coins: 150, image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80", featured: false, active: true, sortOrder: 120 }
+  ];
 
   for (const plan of seedPricingPlans) {
     await pricingPlans.updateOne(
@@ -338,6 +357,24 @@ async function run() {
         },
         $setOnInsert: {
           createdAt: new Date()
+        }
+      },
+      { upsert: true }
+    );
+  }
+
+  for (const gift of seedGifts) {
+    await gifts.updateOne(
+      { key: gift.key },
+      {
+        $set: {
+          ...gift,
+          key: gift.key.toLowerCase(),
+          updatedAt: new Date()
+        },
+        $setOnInsert: {
+          createdAt: new Date(),
+          description: ""
         }
       },
       { upsert: true }
@@ -453,6 +490,7 @@ async function run() {
   console.log(`Likes seeded: ${likeOps.length}`);
   console.log(`Matches seeded: ${matchDocs.length}`);
   console.log(`Messages seeded: ${messageDocs.length}`);
+  console.log(`Gifts available: ${seedGifts.length}`);
   console.log("Primary demo accounts:");
   console.log("- demo@velora.app (user)");
   console.log("- admin@velora.app (admin)");

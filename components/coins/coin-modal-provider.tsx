@@ -394,7 +394,7 @@ export function CoinModalProvider({ children }: { children: React.ReactNode }) {
               {loading ? "Processing..." : "Complete purchase"}
             </button>
 
-            <p className="mt-4 text-center text-xs text-foreground/60">Secure checkout. VIP subscriptions are now handled directly inside your Velora account with recurring renewal management.</p>
+            <p className="mt-4 text-center text-xs text-foreground/60">Secure checkout powered by Stripe. VIP and subscriptions renew monthly until cancelled.</p>
           </div>
         </div>
       ) : null}

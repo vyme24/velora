@@ -9,7 +9,6 @@ import { verifyCsrf } from "@/lib/csrf";
 import { User } from "@/models/User";
 import { Payment } from "@/models/Payment";
 import { Transaction } from "@/models/Transaction";
-import { activateInternalSubscription, activateInternalVip } from "@/lib/subscriptions";
 import { generateInvoiceId } from "@/lib/payment-invoice";
 
 type CheckoutBody = {
@@ -65,38 +64,86 @@ export async function POST(req: NextRequest) {
     const chargeAmount = offer ? offer.amount : pkg.amount;
     const currency = (offer?.currency || pkg.currency || "usd").toLowerCase();
 
-    if (vipEnabled) {
-      const activated = await activateInternalVip({
-        userId: String(user._id),
-        packageId: pkg.key,
-        amount: chargeAmount,
-        currency,
-        totalCoins,
-        baseCoins,
-        bonusCoins,
-        bonusPercent,
-        offerCode: offer?.code || null
-      });
-
-      if (!activated) return fail("Unable to activate VIP recurring plan", 422);
-
-      return ok({
-        internalProcessed: true,
-        mode: "vip_coin_subscription",
-        coins: activated.user.coins,
-        vip: {
-          enabled: activated.user.vip?.enabled || false,
-          status: activated.user.vip?.status || "none",
-          currentPeriodEnd: activated.user.vip?.currentPeriodEnd || null,
-          cancelAtPeriodEnd: Boolean(activated.user.vip?.cancelAtPeriodEnd)
-        }
-      });
-    }
-
     const stripe = getStripeClient();
     const stripeCustomerId = await ensureStripeCustomerForUser(stripe, user);
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const productLabel = offer ? offer.label : `${baseCoins} Velora Coins`;
+
+    if (vipEnabled) {
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        payment_method_types: ["card"],
+        customer: stripeCustomerId,
+        metadata: {
+          userId: String(user._id),
+          mode: "vip_coin_subscription",
+          packageId: pkg.key,
+          offerCode: offer?.code || "",
+          coins: String(totalCoins),
+          baseCoins: String(baseCoins),
+          bonusCoins: String(bonusCoins),
+          bonusPercent: String(bonusPercent)
+        },
+        subscription_data: {
+          metadata: {
+            userId: String(user._id),
+            mode: "vip_coin_subscription",
+            packageId: pkg.key,
+            offerCode: offer?.code || "",
+            coins: String(totalCoins),
+            baseCoins: String(baseCoins),
+            bonusCoins: String(bonusCoins),
+            bonusPercent: String(bonusPercent)
+          }
+        },
+        line_items: [
+          {
+            price_data: {
+              currency,
+              recurring: { interval: "month" },
+              product_data: { name: `Velora VIP ${productLabel}` },
+              unit_amount: chargeAmount
+            },
+            quantity: 1
+          }
+        ],
+        success_url: `${baseUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/billing/cancel`
+      });
+
+      await Payment.create({
+        userId: user._id,
+        provider: "stripe",
+        type: "subscription",
+        amount: chargeAmount,
+        currency,
+        status: "pending",
+        invoiceId: generateInvoiceId("VIP"),
+        referenceId: `cs_${session.id}`,
+        stripeCheckoutSessionId: session.id,
+        packageId: pkg.key,
+        coinsAdded: totalCoins,
+        metadata: {
+          userId: String(user._id),
+          packageId: pkg.key,
+          mode: "vip_coin_subscription",
+          offerCode: offer?.code || null,
+          bonusPercent,
+          bonusCoins,
+          baseCoins
+        }
+      });
+
+      await Transaction.create({
+        userId: user._id,
+        stripeSessionId: session.id,
+        amount: chargeAmount,
+        type: "subscription",
+        status: "pending"
+      });
+
+      return ok({ checkoutUrl: session.url, sessionId: session.id, mode: "vip_coin_subscription" });
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -166,21 +213,69 @@ export async function POST(req: NextRequest) {
   const subscriptionPlan = await getSubscriptionPlanByKey(body.plan);
   if (!subscriptionPlan) return fail("Subscription plan not found", 404);
 
-  const activated = await activateInternalSubscription(String(user._id), body.plan);
-  if (!activated) return fail("Unable to activate subscription", 422);
+  const stripe = getStripeClient();
+  const stripeCustomerId = await ensureStripeCustomerForUser(stripe, user);
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const amount = Number(subscriptionPlan.amount || 0);
+  const currency = String(subscriptionPlan.currency || "usd").toLowerCase();
+  if (!Number.isFinite(amount) || amount <= 0) return fail("Invalid subscription amount", 422);
 
-  return ok({
-    internalProcessed: true,
+  const session = await stripe.checkout.sessions.create({
     mode: "subscription",
-    plan: body.plan,
-    subscription: {
-      status: activated.user.subscription?.status || "none",
-      currentPeriodEnd: activated.user.subscription?.currentPeriodEnd || null,
-      cancelAtPeriodEnd: Boolean(activated.user.subscription?.cancelAtPeriodEnd)
+    payment_method_types: ["card"],
+    customer: stripeCustomerId,
+    metadata: {
+      userId: String(user._id),
+      mode: "subscription",
+      plan: body.plan
     },
-    payment: {
-      id: String(activated.payment._id),
-      amount: subscriptionPlan.amount
+    subscription_data: {
+      metadata: {
+        userId: String(user._id),
+        mode: "subscription",
+        plan: body.plan
+      }
+    },
+    line_items: [
+      {
+        price_data: {
+          currency,
+          recurring: { interval: "month" },
+          product_data: { name: `Velora ${subscriptionPlan.label || body.plan}` },
+          unit_amount: amount
+        },
+        quantity: 1
+      }
+    ],
+    success_url: `${baseUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${baseUrl}/billing/cancel`
+  });
+
+  await Payment.create({
+    userId: user._id,
+    provider: "stripe",
+    type: "subscription",
+    amount,
+    currency,
+    status: "pending",
+    invoiceId: generateInvoiceId("SUB"),
+    referenceId: `cs_${session.id}`,
+    stripeCheckoutSessionId: session.id,
+    subscriptionPlan: body.plan,
+    metadata: {
+      userId: String(user._id),
+      mode: "subscription",
+      plan: body.plan
     }
   });
+
+  await Transaction.create({
+    userId: user._id,
+    stripeSessionId: session.id,
+    amount,
+    type: "subscription",
+    status: "pending"
+  });
+
+  return ok({ checkoutUrl: session.url, sessionId: session.id, mode: "subscription", plan: body.plan });
 }

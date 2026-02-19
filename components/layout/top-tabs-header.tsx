@@ -8,11 +8,9 @@ import { Compass, MessageCircle, Heart, Coins, Plus, User, Settings, Shield, Log
 import { useCoinModal } from "@/components/coins/coin-modal-provider";
 import { VeloraLogo } from "@/components/brand/velora-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { apiFetch } from "@/lib/client-api";
 import { useI18n } from "@/components/i18n-provider";
 import { LanguageSelector } from "@/components/language-selector";
 import { getAuthMeCached } from "@/lib/client-runtime-cache";
-import { NotificationDropdown } from "@/components/layout/notification-dropdown";
 
 const tabs = [
   { href: "/app/discover", label: "Discover", icon: Compass },
@@ -32,9 +30,8 @@ export function TopTabsHeader() {
   const [role, setRole] = useState<"user" | "admin" | "super_admin">("user");
   const [avatar, setAvatar] = useState("");
   const [newLikes, setNewLikes] = useState(0);
-  const [newMessages, setNewMessages] = useState(0);
+  const [newMessages] = useState(0);
   const [newMatches, setNewMatches] = useState(0);
-  const [notificationItems, setNotificationItems] = useState<Array<{ id: string; title: string; subtitle?: string; href: string }>>([]);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -47,79 +44,6 @@ export function TopTabsHeader() {
       }
     }
     void loadMe();
-  }, []);
-
-  useEffect(() => {
-    const likesSeenKey = "velora:likes_seen_at";
-    const matchesSeenKey = "velora:matches_seen_at";
-
-    async function refreshBadges() {
-      const summaryRes = await apiFetch("/api/notifications/summary", { retryOn401: true });
-      const summaryJson = await summaryRes.json();
-      if (!summaryRes.ok) return;
-
-      const recentLikes = summaryJson.data?.recentLikes || [];
-      const recentMatches = summaryJson.data?.recentMatches || [];
-
-      {
-        const seenRaw = window.localStorage.getItem(likesSeenKey);
-        const seenAt = seenRaw ? new Date(seenRaw) : new Date(0);
-        const unseenLikes = recentLikes.filter((item: { createdAt?: string }) => {
-          if (!item.createdAt) return false;
-          return new Date(item.createdAt).getTime() > seenAt.getTime();
-        });
-        setNewLikes(unseenLikes.length);
-      }
-
-      {
-        const seenRaw = window.localStorage.getItem(matchesSeenKey);
-        const seenAt = seenRaw ? new Date(seenRaw) : new Date(0);
-        const unseenMatches = recentMatches.filter((item: { matchedAt?: string }) => {
-          if (!item.matchedAt) return false;
-          return new Date(item.matchedAt).getTime() > seenAt.getTime();
-        });
-        setNewMatches(unseenMatches.length);
-      }
-
-      setNewMessages(Number(summaryJson.data?.unreadMessages || 0));
-
-      const items: Array<{ id: string; title: string; subtitle?: string; href: string }> = [];
-      recentLikes.slice(0, 3).forEach((entry: { _id: string; user?: { name?: string } }) => {
-        items.push({
-          id: `like-${entry._id}`,
-          title: `${entry.user?.name || "Someone"} liked your profile`,
-          subtitle: "Open Likes",
-          href: "/app/likes"
-        });
-      });
-      recentMatches.slice(0, 3).forEach((entry: { _id: string; user?: { name?: string } }) => {
-        items.push({
-          id: `match-${entry._id}`,
-          title: `New match with ${entry.user?.name || "a user"}`,
-          subtitle: "Open Matches",
-          href: "/app/matches"
-        });
-      });
-      if (Number(summaryJson.data?.unreadMessages || 0) > 0) {
-        items.unshift({
-          id: "messages-unread",
-          title: `${Number(summaryJson.data?.unreadMessages || 0)} unread messages`,
-          subtitle: "Open Messages",
-          href: "/app/messages"
-        });
-      }
-      setNotificationItems(items.slice(0, 8));
-    }
-
-    void refreshBadges();
-    const interval = window.setInterval(refreshBadges, 12000);
-    const sync = () => void refreshBadges();
-    window.addEventListener("velora:badge-sync", sync);
-
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("velora:badge-sync", sync);
-    };
   }, []);
 
   useEffect(() => {
@@ -226,7 +150,6 @@ export function TopTabsHeader() {
           </div>
 
           <LanguageSelector />
-          <NotificationDropdown items={notificationItems} unreadCount={newLikes + newMatches + newMessages} />
           <ThemeToggle />
 
           <div className="relative" ref={menuRef}>
